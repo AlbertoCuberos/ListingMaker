@@ -1,26 +1,225 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #050508;
+  --foreground: #e8e8ed;
+  --accent: #f97316;
+  --accent-glow: rgba(249, 115, 22, 0.15);
+  --surface: #0a0a10;
+  --surface-light: #12121a;
+  --border: rgba(255, 255, 255, 0.06);
+  --text-muted: #6b7280;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-dm-sans);
+  --font-display: var(--font-syne);
+  --font-accent: var(--font-instrument);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-dm-sans), system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Display font — Syne for headings */
+.font-display {
+  font-family: var(--font-syne), system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/* Accent font — Instrument Serif italic for emphasis phrases */
+.font-accent {
+  font-family: var(--font-instrument), Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--background); }
+::-webkit-scrollbar-thumb { background: #1a1a2e; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #2a2a4e; }
+
+/* Glow effects */
+.glow-orange {
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.3), 0 0 60px rgba(249, 115, 22, 0.1);
+}
+
+.glow-text {
+  text-shadow: 0 0 40px rgba(249, 115, 22, 0.5), 0 0 80px rgba(249, 115, 22, 0.2);
+}
+
+.glow-line {
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  height: 1px;
+}
+
+/* Grid background */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #f97316 0%, #fb923c 40%, #fbbf24 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Typewriter cursor */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.cursor-blink::after {
+  content: '|';
+  animation: blink 0.8s infinite;
+  color: var(--accent);
+  margin-left: 2px;
+}
+
+/* Float animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Shimmer animation for CTAs */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite linear;
+}
+
+/* Noise overlay */
+.noise::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Card hover effect */
+.card-hover {
+  transition: all 0.3s ease;
+  border: 1px solid var(--border);
+}
+
+.card-hover:hover {
+  border-color: rgba(249, 115, 22, 0.2);
+  box-shadow: 0 0 30px rgba(249, 115, 22, 0.05);
+  transform: translateY(-2px);
+}
+
+/* Section label pill */
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f97316;
+  background: rgba(249, 115, 22, 0.08);
+  border: 1px solid rgba(249, 115, 22, 0.2);
+  padding: 0.35rem 0.875rem;
+  border-radius: 9999px;
+}
+
+/* Premium Border Glow Animation */
+@keyframes border-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.border-glow {
+  position: relative;
+}
+
+.border-glow::before {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg, 
+    transparent 0%, 
+    rgba(249, 115, 22, 0) 20%,
+    rgba(249, 115, 22, 0.3) 35%, 
+    rgba(249, 115, 22, 0.8) 50%, 
+    rgba(249, 115, 22, 0.3) 65%, 
+    rgba(249, 115, 22, 0) 80%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  -webkit-mask: 
+     linear-gradient(#fff 0 0) content-box, 
+     linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  z-index: 10;
+}
+
+.border-glow:hover::before {
+  opacity: 1;
+  animation: border-shimmer 3s infinite linear;
+}
+/* Print & PDF Export Styles */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Hide everything except the report */
+  body > *:not(.print-container),
+  header,
+  nav,
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  #full-report {
+    display: block !important;
+    position: static !important;
+    opacity: 1 !important;
+    width: 100% !important;
+    background: #050508 !important; /* Keep the dark theme for the PDF if desired, or set to white */
+    color: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    pointer-events: auto !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
 }
