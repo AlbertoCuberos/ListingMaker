@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import Stripe from "stripe";
+import { getServerFirestore, getAdminInstance } from "@/lib/firebase-admin";
 
 export const dynamic = 'force-dynamic';
-import { getServerFirestore } from "@/lib/firebase-admin";
-import * as admin from "firebase-admin";
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -49,7 +48,7 @@ export async function POST(req: NextRequest) {
       // 1. Update User Profile (Credits and Plan)
       const profileRef = db.collection("profiles").doc(firebaseUserId);
       batch.set(profileRef, {
-        creditsRemaining: admin.firestore.FieldValue.increment(credits),
+        creditsRemaining: (await getAdminInstance()).firestore.FieldValue.increment(credits),
         plan: plan,
         updatedAt: new Date().toISOString(),
       }, { merge: true });
@@ -102,10 +101,11 @@ export async function POST(req: NextRequest) {
             plan: plan
           };
 
+          const adminInst = await getAdminInstance();
           batch.update(affiliateRef, {
-            earningsTotal: admin.firestore.FieldValue.increment(commissionAmount),
-            recentSales: admin.firestore.FieldValue.arrayUnion(saleData),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            earningsTotal: adminInst.firestore.FieldValue.increment(commissionAmount),
+            recentSales: adminInst.firestore.FieldValue.arrayUnion(saleData),
+            updatedAt: adminInst.firestore.FieldValue.serverTimestamp()
           });
           
           console.log(`[Affiliate] Attributing ${commissionAmount} ${session.currency} to ${codeString}`);

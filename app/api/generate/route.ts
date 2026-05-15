@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateListing } from "@/lib/claude";
 import { fetchCompetitors, parseAsinList } from "@/lib/scraper";
-import { getServerFirestore } from "@/lib/firebase-admin";
-import * as admin from "firebase-admin";
+import { getServerFirestore, getAdminInstance } from "@/lib/firebase-admin";
+import { isUserAdmin } from "@/lib/admins";
 
 export const dynamic = 'force-dynamic';
-import { isUserAdmin } from "@/lib/admins";
 import { demoListingEn, demoListingEs, condroListingEs } from "@/lib/demo-listing";
 import { getCurrencySymbol } from "@/lib/currency";
 
@@ -146,7 +145,7 @@ export async function POST(req: NextRequest) {
           // Decrement credits (SKIP for admins)
           if (!isAdminUser) {
             batch.update(profileRef, {
-              creditsRemaining: admin.firestore.FieldValue.increment(-1),
+              creditsRemaining: (await getAdminInstance()).firestore.FieldValue.increment(-1),
               updatedAt: new Date().toISOString(),
             });
           }
