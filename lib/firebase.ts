@@ -19,6 +19,9 @@ let browserFirestore: ReturnType<typeof getFirestore> | null = null;
 
 export function getBrowserApp() {
   if (!browserApp) {
+    if (!firebaseConfig.apiKey) {
+      throw new Error("Firebase apiKey not set — check NEXT_PUBLIC_FIREBASE_API_KEY");
+    }
     browserApp = initializeApp(firebaseConfig);
   }
   return browserApp;

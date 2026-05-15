@@ -3,6 +3,8 @@ import { generateListing } from "@/lib/claude";
 import { fetchCompetitors, parseAsinList } from "@/lib/scraper";
 import { getServerFirestore } from "@/lib/firebase-admin";
 import * as admin from "firebase-admin";
+
+export const dynamic = 'force-dynamic';
 import { isUserAdmin } from "@/lib/admins";
 import { demoListingEn, demoListingEs, condroListingEs } from "@/lib/demo-listing";
 import { getCurrencySymbol } from "@/lib/currency";
