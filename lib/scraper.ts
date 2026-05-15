@@ -43,11 +43,14 @@ export function parseAsinList(raw: string): string[] {
 
 // Launch a browser appropriate for the current environment
 async function launchBrowser() {
-  const { chromium } = await import("playwright-core");
+  // Use variable names to prevent Turbopack/webpack static analysis
+  const pwModule = "playwright-core";
+  const { chromium } = await import(/* webpackIgnore: true */ pwModule as any);
 
   // In production (Vercel/Lambda), use the minimal Chromium build
   if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
-    const chromiumMin = (await import("@sparticuz/chromium-min")).default;
+    const chromiumModule = "@sparticuz/chromium-min";
+    const chromiumMin = (await import(/* webpackIgnore: true */ chromiumModule as any)).default;
     const executablePath = await chromiumMin.executablePath(
       "https://github.com/Sparticuz/chromium/releases/download/v131.0.0/chromium-v131.0.0-pack.tar"
     );
