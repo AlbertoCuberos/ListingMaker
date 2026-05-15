@@ -1,6 +1,7 @@
-// Amazon scraper using Playwright (real browser) for reliable extraction
-// Handles ASIN-direct and keyword-search modes
-// Uses @sparticuz/chromium-min for Vercel-compatible headless Chrome
+// Amazon scraper using fetch + cheerio (no native binaries, Vercel-compatible)
+// Amazon SSR-renders title, bullets, price, rating in the initial HTML
+
+import * as cheerio from "cheerio";
 
 export interface CompetitorProduct {
   title: string;
@@ -23,9 +24,7 @@ const domainMap: Record<string, string> = {
 // Extract ASIN from a URL or return as-is if already an ASIN
 export function parseAsin(input: string): string | null {
   const trimmed = input.trim();
-  // Pure ASIN (10 uppercase alphanumeric chars)
   if (/^[A-Z0-9]{10}$/.test(trimmed)) return trimmed;
-  // URL with /dp/ASIN or /gp/product/ASIN
   const match = trimmed.match(/\/(?:dp|gp\/product)\/([A-Z0-9]{10})/i);
   if (match) return match[1].toUpperCase();
   return null;
@@ -41,144 +40,85 @@ export function parseAsinList(raw: string): string[] {
     .slice(0, 10);
 }
 
-// Launch a browser appropriate for the current environment
-async function launchBrowser() {
-  // Use variable names to prevent Turbopack/webpack static analysis
-  const pwModule = "playwright-core";
-  const { chromium } = await import(/* webpackIgnore: true */ pwModule as any);
+const USER_AGENTS = [
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+];
 
-  // In production (Vercel/Lambda), use the minimal Chromium build
-  if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
-    const chromiumModule = "@sparticuz/chromium-min";
-    const chromiumMin = (await import(/* webpackIgnore: true */ chromiumModule as any)).default;
-    const executablePath = await chromiumMin.executablePath(
-      "https://github.com/Sparticuz/chromium/releases/download/v131.0.0/chromium-v131.0.0-pack.tar"
-    );
-    return chromium.launch({
-      args: chromiumMin.args,
-      executablePath,
-      headless: true,
+function randomUA() {
+  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
+
+async function fetchPage(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": randomUA(),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"macOS"',
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Upgrade-Insecure-Requests": "1",
+      },
+      signal: AbortSignal.timeout(12000),
     });
-  }
-
-  // In development, use the locally-installed browser
-  return chromium.launch({ headless: true });
-}
-
-// Extract competitor data from a rendered product page
-async function extractFromPage(
-  page: import("playwright-core").Page,
-  asin: string
-): Promise<CompetitorProduct | null> {
-  try {
-    // Title
-    const title = await page
-      .$eval("#productTitle", (el) => el.textContent?.trim() ?? "")
-      .catch(() => "");
-    if (!title) return null;
-
-    // Bullets
-    const bullets = await page
-      .$$eval(
-        "#feature-bullets .a-list-item",
-        (els) =>
-          els
-            .map((el) => el.textContent?.trim() ?? "")
-            .filter((t) => t.length > 10 && !t.includes("Make sure") && !t.includes("Click here"))
-      )
-      .catch(() => [] as string[]);
-
-    // Price
-    const price = await page
-      .$eval(".a-price .a-offscreen", (el) => el.textContent?.trim() ?? "")
-      .catch(() => "");
-
-    // Rating
-    const rating = await page
-      .$eval("[data-hook='average-star-rating'] .a-icon-alt", (el) =>
-        el.textContent?.split(" ")[0] ?? ""
-      )
-      .catch(() => "");
-
-    // Review count
-    const reviewCount = await page
-      .$eval("[data-hook='total-review-count']", (el) => el.textContent?.trim() ?? "")
-      .catch(() => "");
-
-    return { title, asin, bullets, price, rating, reviewCount };
-  } catch (e) {
-    console.error(`[SCRAPER] Parse error for ${asin}:`, e);
+    if (!res.ok) return null;
+    return await res.text();
+  } catch {
     return null;
   }
 }
 
-// Scrape a single ASIN, returns null on failure
-async function scrapeAsin(
-  domain: string,
-  asin: string,
-  browser: import("playwright-core").Browser
-): Promise<CompetitorProduct | null> {
-  const context = await browser.newContext({
-    userAgent:
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    locale: "en-US",
-    extraHTTPHeaders: { "Accept-Language": "en-US,en;q=0.9" },
-  });
-  const page = await context.newPage();
-  try {
-    const url = `https://${domain}/dp/${asin}`;
-    const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
-    if (!response?.ok()) {
-      await context.close();
-      return null;
+async function scrapeAsin(domain: string, asin: string): Promise<CompetitorProduct | null> {
+  const html = await fetchPage(`https://${domain}/dp/${asin}`);
+  if (!html) return null;
+
+  // If Amazon redirected to CAPTCHA/signin page, bail
+  if (html.includes("robot check") || html.includes("Type the characters") || html.includes("ap/signin")) {
+    console.warn(`[SCRAPER] Bot detection on ASIN ${asin}`);
+    return null;
+  }
+
+  const $ = cheerio.load(html);
+
+  const title = $("#productTitle").text().trim();
+  if (!title) return null;
+
+  const bullets: string[] = [];
+  $("#feature-bullets .a-list-item").each((_, el) => {
+    const text = $(el).text().trim();
+    if (text.length > 10 && !text.includes("Make sure") && !text.includes("Click here")) {
+      bullets.push(text);
     }
-    // Dismiss cookie banner if present (EU markets)
-    await page
-      .click('[id*="accept"], [data-action*="accept-cookies"], #sp-cc-accept', { timeout: 2000 })
-      .catch(() => {});
-    const product = await extractFromPage(page, asin);
-    await context.close();
-    return product;
-  } catch {
-    await context.close();
-    return null;
-  }
+  });
+
+  const price = $(".a-price .a-offscreen").first().text().trim() || undefined;
+  const rating = $("[data-hook='average-star-rating'] .a-icon-alt").first().text().split(" ")[0] || undefined;
+  const reviewCount = $("[data-hook='total-review-count']").first().text().trim() || undefined;
+
+  return { title, asin, bullets, price, rating, reviewCount };
 }
 
-// Auto-search: find top ASINs for a keyword on Amazon
-async function searchAsins(
-  domain: string,
-  keyword: string,
-  browser: import("playwright-core").Browser
-): Promise<string[]> {
-  const context = await browser.newContext({
-    userAgent:
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+async function searchAsins(domain: string, keyword: string): Promise<string[]> {
+  const html = await fetchPage(`https://${domain}/s?k=${encodeURIComponent(keyword)}`);
+  if (!html) return [];
+
+  const $ = cheerio.load(html);
+  const asins: string[] = [];
+  $("[data-asin]").each((_, el) => {
+    const asin = $(el).attr("data-asin") ?? "";
+    if (/^[A-Z0-9]{10}$/.test(asin)) asins.push(asin);
   });
-  const page = await context.newPage();
-  try {
-    await page.goto(
-      `https://${domain}/s?k=${encodeURIComponent(keyword)}`,
-      { waitUntil: "domcontentloaded", timeout: 15000 }
-    );
-    await page
-      .click('[id*="accept"], #sp-cc-accept', { timeout: 2000 })
-      .catch(() => {});
 
-    const asins = await page
-      .$$eval("[data-asin]", (els) =>
-        els
-          .map((el) => el.getAttribute("data-asin") ?? "")
-          .filter((a) => /^[A-Z0-9]{10}$/.test(a))
-      )
-      .catch(() => [] as string[]);
-
-    await context.close();
-    return [...new Set(asins)].slice(0, 10);
-  } catch {
-    await context.close();
-    return [];
-  }
+  return [...new Set(asins)].slice(0, 10);
 }
 
 function formatCompetitorData(products: CompetitorProduct[]): string {
@@ -203,32 +143,25 @@ function buildFallbackMessage(searchTerm: string, marketplace: string): string {
 export async function fetchCompetitors(
   searchTerm: string,
   marketplace: string,
-  userAsins?: string[] // provided by the seller via the form
+  userAsins?: string[]
 ): Promise<string> {
   const domain = domainMap[marketplace] ?? domainMap.us;
-  let browser: import("playwright-core").Browser | null = null;
 
   try {
-    browser = await launchBrowser();
-
     let asins: string[] = userAsins?.length ? userAsins : [];
 
-    // If no ASINs provided, search Amazon for the top ones
     if (asins.length === 0) {
       console.log(`[SCRAPER] No ASINs provided. Searching ${domain} for: "${searchTerm}"`);
-      asins = await searchAsins(domain, searchTerm, browser);
-      if (asins.length === 0) {
-        return buildFallbackMessage(searchTerm, marketplace);
-      }
+      asins = await searchAsins(domain, searchTerm);
+      if (asins.length === 0) return buildFallbackMessage(searchTerm, marketplace);
       console.log(`[SCRAPER] Found ${asins.length} ASINs from search.`);
     } else {
       console.log(`[SCRAPER] Using ${asins.length} user-provided ASINs on ${domain}`);
     }
 
-    // Scrape up to 5 ASINs in parallel
     const toFetch = asins.slice(0, 5);
     const results = await Promise.allSettled(
-      toFetch.map((asin) => scrapeAsin(domain, asin, browser!))
+      toFetch.map((asin) => scrapeAsin(domain, asin))
     );
 
     const products: CompetitorProduct[] = results
@@ -238,9 +171,7 @@ export async function fetchCompetitors(
       )
       .map((r) => r.value);
 
-    console.log(
-      `[SCRAPER] ✓ Scraped ${products.length}/${toFetch.length} competitor listings`
-    );
+    console.log(`[SCRAPER] ✓ Scraped ${products.length}/${toFetch.length} competitor listings`);
 
     return products.length > 0
       ? formatCompetitorData(products)
@@ -248,7 +179,5 @@ export async function fetchCompetitors(
   } catch (err) {
     console.error("[SCRAPER] Critical error:", err);
     return buildFallbackMessage(searchTerm, marketplace);
-  } finally {
-    await browser?.close().catch(() => {});
   }
 }
