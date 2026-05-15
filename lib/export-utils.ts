@@ -1,6 +1,5 @@
 import { ListingResult } from "./types";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 
 export function generateMarkdown(result: ListingResult): string {
   const date = new Date((result as any).createdAt || Date.now()).toLocaleDateString();
@@ -60,32 +59,143 @@ export function downloadMarkdown(result: ListingResult) {
   URL.revokeObjectURL(url);
 }
 
-export async function downloadPDF(elementId: string, filename: string) {
-  const element = document.getElementById(elementId);
-  if (!element) return;
-
+export function downloadPDF(_elementId: string, filename: string, result?: ListingResult) {
   try {
-    const canvas = await html2canvas(element, {
-      scale: 1.5, // Slightly lower scale to prevent memory issues
-      useCORS: true,
-      backgroundColor: "#050508",
-      logging: false,
-      windowWidth: element.scrollWidth,
-      windowHeight: element.scrollHeight,
-    });
+    if (!result) {
+      window.print();
+      return;
+    }
 
-    const imgData = canvas.toDataURL("image/jpeg", 0.95);
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "px",
-      format: [canvas.width, canvas.height],
-    });
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 18;
+    const contentW = pageW - margin * 2;
+    let y = margin;
 
-    pdf.addImage(imgData, "JPEG", 0, 0, canvas.width, canvas.height);
+    const addPage = () => {
+      pdf.addPage();
+      pdf.setFillColor(255, 255, 255);
+      pdf.rect(0, 0, pageW, pageH, "F");
+      y = margin;
+    };
+
+    const checkY = (needed: number) => {
+      if (y + needed > pageH - margin) addPage();
+    };
+
+    // White background — use dark text for legibility
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(0, 0, pageW, pageH, "F");
+
+    const writeText = (text: string, size: number, bold = false, color: [number, number, number] = [30, 30, 30]) => {
+      pdf.setFontSize(size);
+      pdf.setFont("helvetica", bold ? "bold" : "normal");
+      pdf.setTextColor(...color);
+      const lines = pdf.splitTextToSize(text, contentW);
+      checkY(lines.length * (size * 0.4) + 2);
+      pdf.text(lines, margin, y);
+      y += lines.length * (size * 0.4) + 2;
+    };
+
+    const writeSectionHeader = (text: string) => {
+      checkY(12);
+      pdf.setFillColor(249, 115, 22);
+      pdf.rect(margin, y - 4, contentW, 0.4, "F");
+      y += 2;
+      writeText(text.toUpperCase(), 8, true, [249, 115, 22]);
+      y += 2;
+    };
+
+    // Header bar (orange accent on white)
+    pdf.setFillColor(249, 115, 22);
+    pdf.rect(0, 0, pageW, 18, "F");
+    pdf.setFontSize(13);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(255, 255, 255);
+    pdf.text("ListingMaker.AI", margin, 12);
+    pdf.setFontSize(8);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(`Generated ${new Date().toLocaleDateString()}`, pageW - margin, 12, { align: "right" });
+    y = 26;
+
+    // Product name
+    writeText(result.productName ?? filename, 18, true, [15, 15, 15]);
+    y += 4;
+
+    // Scores
+    if (result.analysis) {
+      writeText(`SEO Score: ${result.analysis.seoScore}/100   Rufus AI Score: ${result.analysis.rufusScore}/100`, 9, false, [249, 115, 22]);
+      y += 4;
+    }
+
+    // Title
+    writeSectionHeader("Title");
+    writeText(result.title, 9, false, [20, 20, 20]);
+    writeText(`${result.title.length} characters`, 7, false, [100, 100, 100]);
+    y += 3;
+
+    // Bullets
+    writeSectionHeader("Bullet Points");
+    result.bullets.forEach((b, i) => {
+      writeText(`${i + 1}. ${b}`, 8, false, [30, 30, 30]);
+      y += 1;
+    });
+    y += 3;
+
+    // Description
+    writeSectionHeader("Description");
+    writeText(result.description, 8, false, [30, 30, 30]);
+    y += 3;
+
+    // Backend keywords
+    writeSectionHeader("Backend Search Terms");
+    writeText(result.backendKeywords, 8, false, [30, 30, 30]);
+    const byteCount = new TextEncoder().encode(result.backendKeywords).length;
+    writeText(`${byteCount} bytes`, 7, false, [100, 100, 100]);
+    y += 3;
+
+    // Keywords
+    writeSectionHeader("Primary Keyword");
+    writeText(result.keywordsUsed.primary, 9, true, [249, 115, 22]);
+    const reasoning = (result as any).primaryKeywordReasoning as string | undefined;
+    if (reasoning) {
+      y += 1;
+      writeText(reasoning, 8, false, [80, 80, 80]);
+    }
+    y += 3;
+
+    // Competitor keyword map
+    if (result.analysis?.competitorKeywordMap?.length) {
+      writeSectionHeader("Competitor Keyword Map");
+      result.analysis.competitorKeywordMap.slice(0, 15).forEach((kw) => {
+        writeText(`• ${kw.keyword}  —  ${kw.frequency}/${kw.totalCompetitors} competitors  [${kw.classification}]`, 7, false, [50, 50, 50]);
+      });
+      y += 3;
+    }
+
+    // Keyword gaps
+    if (result.analysis?.keywordGaps?.length) {
+      writeSectionHeader("Keyword Gaps Exploited");
+      result.analysis.keywordGaps.forEach((gap) => {
+        writeText(`• ${gap}`, 7, false, [50, 50, 50]);
+      });
+      y += 3;
+    }
+
+    // Footer on every page
+    const totalPages = (pdf as any).internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      pdf.setPage(i);
+      pdf.setFontSize(7);
+      pdf.setTextColor(80, 80, 80);
+      pdf.text("ListingMaker.AI — Amazon Listing Optimization", margin, pageH - 8);
+      pdf.text(`Page ${i} / ${totalPages}`, pageW - margin, pageH - 8, { align: "right" });
+    }
+
     pdf.save(`${filename}.pdf`);
   } catch (error) {
     console.error("PDF generation failed:", error);
-    alert("PDF generation failed. Using default print fallback...");
     window.print();
   }
 }

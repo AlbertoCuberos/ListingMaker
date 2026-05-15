@@ -33,10 +33,20 @@ export default function CreatePage() {
     marketplace: "us",
     category: "",
     price: "",
-    competitorListings: "",
     additionalInfo: "",
   });
+  const [asinFields, setAsinFields] = useState<string[]>([""]);
   const [uploadedPdfs, setUploadedPdfs] = useState<{ name: string; text: string }[]>([]);
+
+  const addAsinField = () => {
+    if (asinFields.length < 10) setAsinFields((f) => [...f, ""]);
+  };
+  const removeAsinField = (i: number) => {
+    setAsinFields((f) => f.length > 1 ? f.filter((_, idx) => idx !== i) : [""]);
+  };
+  const updateAsinField = (i: number, val: string) => {
+    setAsinFields((f) => f.map((v, idx) => idx === i ? val : v));
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -80,7 +90,7 @@ export default function CreatePage() {
       img.src = URL.createObjectURL(file);
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        const MAX_DIM = 1200;
+        const MAX_DIM = 600; // Aggressively optimized for ultra-fast processing
         let width = img.width;
         let height = img.height;
 
@@ -107,12 +117,14 @@ export default function CreatePage() {
             else resolve(file); // Fallback to original
           },
           "image/jpeg",
-          0.8
+          0.6 // Reduced from 0.7 for even smaller payload
         );
       };
       img.onerror = () => resolve(file); // Fallback on error
     });
   };
+
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
     if (!isAdmin && profile && profile.creditsRemaining <= 0) {
@@ -122,13 +134,15 @@ export default function CreatePage() {
     }
 
     setLoading(true);
+    setError(null);
     try {
       const body = new FormData();
       const pdfContext = uploadedPdfs.map(p => `[CONTENT FROM PDF: ${p.name}]\n${p.text}`).join("\n\n");
-      body.append("data", JSON.stringify({ 
-        ...formData, 
+      body.append("data", JSON.stringify({
+        ...formData,
+        competitorAsins: asinFields.filter(Boolean).join(", "),
         additionalInfo: `${formData.additionalInfo}\n\n${pdfContext}`.trim(),
-        userId: user?.uid 
+        userId: user?.uid,
       }));
       
       // Compress images before sending
@@ -138,21 +152,35 @@ export default function CreatePage() {
         body.append("images", file);
       });
 
-      const res = await fetch("/api/generate", { method: "POST", body });
+      // Create a controller for request timeout (280s = scraping 15s + AI 120s + safety margin)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 280000);
+
+      let res: Response;
+      try {
+        res = await fetch("/api/generate", { method: "POST", body, signal: controller.signal });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
       const result = await res.json();
 
-      if (result.error) {
-        alert(result.error);
-        setLoading(false);
-        return;
+      if (!res.ok || result.error) {
+        throw new Error(result.error || `Server error: ${res.status}`);
       }
 
       sessionStorage.setItem("listing-result", JSON.stringify(result));
       router.push(result.listingId ? `/result?id=${result.listingId}` : "/result");
-    } catch {
-      alert("Something went wrong. Please try again.");
-    } finally {
+    } catch (err: any) {
+      console.error("Submission error:", err);
+      const errMsg = err.name === "AbortError"
+        ? "La generación tardó demasiado. Por favor, inténtalo de nuevo con menos imágenes o una descripción más corta."
+        : err.message || "Algo salió mal. Inténtalo de nuevo.";
+      setError(errMsg);
       setLoading(false);
+    } finally {
+      // Loading is set to false in the catch block if error, 
+      // or we transition to the result page on success.
     }
   };
 
@@ -262,6 +290,63 @@ export default function CreatePage() {
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                   />
                 </div>
+              </div>
+
+              {/* Competitor ASINs — individual fields */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between ml-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                    {t.create.step1.competitorsLabel}
+                  </label>
+                  <span className="text-[10px] font-semibold tracking-wider text-orange-400/80 bg-orange-500/10 px-2 py-0.5 rounded-full">
+                    {t.create.step1.competitorsBadge}
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {asinFields.map((val, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-gray-600 w-14 shrink-0 text-right">
+                        #{i + 1}
+                      </span>
+                      <input
+                        type="text"
+                        placeholder={i === 0 ? "B08XYZ1234 or https://amazon.es/dp/..." : `Competitor #${i + 1}`}
+                        className={inputClass}
+                        value={val}
+                        onChange={(e) => updateAsinField(i, e.target.value)}
+                      />
+                      {asinFields.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeAsinField(i)}
+                          className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-500/10 text-gray-600 hover:text-red-400 transition"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {asinFields.length < 10 && (
+                  <button
+                    type="button"
+                    onClick={addAsinField}
+                    className="flex items-center gap-1.5 text-[11px] font-semibold text-orange-400/70 hover:text-orange-400 transition ml-[4.5rem]"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                    </svg>
+                    {t.create.step1.competitors}
+                  </button>
+                )}
+
+                <p className="text-[11px] text-gray-500 ml-[4.5rem] leading-relaxed">
+                  {t.create.step1.competitorsHint}
+                </p>
               </div>
 
               <button
@@ -405,6 +490,22 @@ export default function CreatePage() {
                   </p>
                 </div>
               </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 flex items-start gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0 text-red-400">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white mb-1 tracking-tight">Ocurrió un error</h4>
+                    <p className="text-xs text-red-200/60 leading-relaxed">
+                      {error}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-4 pt-4">
                 <button

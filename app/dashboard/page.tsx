@@ -22,7 +22,8 @@ export default function DashboardPage() {
     if (!user) return;
     const db = getBrowserFirestore();
     const q = query(
-      collection(db, "users", user.uid, "listings")
+      collection(db, "users", user.uid, "listings"),
+      orderBy("createdAt", "desc")
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useInView, useAnimation } from "framer-motion";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { useI18n } from "@/lib/i18n";
 
 // ─── Brand logos ──────────────────────────────────────────────────────────────
@@ -123,17 +123,18 @@ function CrackOverlay() {
 
 // ─── Shatter card ─────────────────────────────────────────────────────────────
 
-function DisintegratingTool({ tool }: { tool: typeof TOOLS[0] }) {
+function DisintegratingTool({ tool, cycleKey }: { tool: typeof TOOLS[0]; cycleKey: number }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-80px" });
   const [phase, setPhase] = useState<"idle" | "crack" | "shatter">("idle");
 
   useEffect(() => {
     if (!isInView) return;
+    setPhase("idle");
     const t1 = setTimeout(() => setPhase("crack"),   tool.crackDelay);
     const t2 = setTimeout(() => setPhase("shatter"), tool.crackDelay + 300);
     return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [isInView, tool.crackDelay]);
+  }, [isInView, tool.crackDelay, cycleKey]);
 
   return (
     <div ref={ref} className="relative" style={{ minHeight: 210 }}>
@@ -228,7 +229,11 @@ function RocketIcon({ size = 40 }: { size?: number }) {
 
 // ─── ListingMaker card ────────────────────────────────────────────────────────
 
-function ListingMakerCard({ triggerDelay }: { triggerDelay: number }) {
+function ListingMakerCard({ triggerDelay, cycleKey, onCycleComplete }: {
+  triggerDelay: number;
+  cycleKey: number;
+  onCycleComplete: () => void;
+}) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-80px" });
 
@@ -243,10 +248,14 @@ function ListingMakerCard({ triggerDelay }: { triggerDelay: number }) {
   useEffect(() => {
     if (!isInView) return;
 
+    // Reset visuals for loop cycles
+    setRocketVisible(false);
+    cardCtrl.set({ opacity: 0, scale: 0.88, y: 12 });
+    glowCtrl.set({ opacity: 0, scale: 0.8 });
+
     const run = async () => {
       setRocketVisible(true);
 
-      // Rocket sweeps in from top-right, lands on card center
       rocketCtrl.start({
         opacity: [0, 1, 1, 1, 0],
         x:      [180, 90, 10, -40, -130],
@@ -256,17 +265,14 @@ function ListingMakerCard({ triggerDelay }: { triggerDelay: number }) {
         transition: { duration: 1.0, ease: [0.22, 1, 0.36, 1], times: [0, 0.25, 0.55, 0.78, 1] },
       });
 
-      // Landing burst
       burstCtrl.start({
         scale:   [0.1, 2.4],
         opacity: [1, 0],
         transition: { duration: 0.5, ease: "easeOut" },
       });
 
-      // Secondary inner burst (smaller, faster)
       await new Promise(r => setTimeout(r, 80));
 
-      // Card entrance: scale punch then settle
       cardCtrl.start({
         opacity: [0, 1, 1, 1],
         scale:   [0.88, 1.05, 0.98, 1],
@@ -274,17 +280,20 @@ function ListingMakerCard({ triggerDelay }: { triggerDelay: number }) {
         transition: { duration: 0.65, ease: "easeOut", times: [0, 0.45, 0.75, 1] },
       });
 
-      // Glow aura
       await glowCtrl.start({
         opacity:   [0, 1, 0.55],
         scale:     [0.8, 1.1, 1],
         transition: { duration: 0.9, ease: "easeOut" },
       });
+
+      // Hold the LM card visible for 5 seconds, then signal loop restart
+      await new Promise(r => setTimeout(r, 5000));
+      onCycleComplete();
     };
 
     const timer = setTimeout(run, triggerDelay);
     return () => clearTimeout(timer);
-  }, [isInView, triggerDelay, rocketCtrl, cardCtrl, burstCtrl, glowCtrl]);
+  }, [isInView, triggerDelay, cycleKey, rocketCtrl, cardCtrl, burstCtrl, glowCtrl, onCycleComplete]);
 
   return (
     <div ref={ref} className="relative flex justify-center items-center" style={{ minHeight: 130 }}>
@@ -358,6 +367,11 @@ export default function PainPoints() {
   const sectionRef = useRef(null);
   const isInView   = useInView(sectionRef, { once: true, margin: "-100px" });
   const { t }      = useI18n();
+  const [cycleKey, setCycleKey] = useState(0);
+
+  const handleCycleComplete = useCallback(() => {
+    setCycleKey((k) => k + 1);
+  }, []);
 
   return (
     <section ref={sectionRef} className="py-24 px-4 sm:px-6 lg:px-8 relative">
@@ -380,14 +394,18 @@ export default function PainPoints() {
         <div className="relative">
           <div className="grid md:grid-cols-3 gap-5">
             {TOOLS.map((tool) => (
-              <DisintegratingTool key={tool.id} tool={tool} />
+              <DisintegratingTool key={`${tool.id}-${cycleKey}`} tool={tool} cycleKey={cycleKey} />
             ))}
           </div>
 
-          {/* LM card sits in front, centered over the grid, from delay */}
+          {/* LM card sits in front, centered over the grid */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="w-full flex justify-center pointer-events-auto">
-              <ListingMakerCard triggerDelay={LM_DELAY} />
+              <ListingMakerCard
+                triggerDelay={LM_DELAY}
+                cycleKey={cycleKey}
+                onCycleComplete={handleCycleComplete}
+              />
             </div>
           </div>
         </div>

@@ -203,10 +203,25 @@ export const fr = {
   },
   footer: {
     rights: "Tous droits réservés.",
+    tagline: "Le moyen le plus rapide de mieux se positionner sur Amazon.",
+    product: "Produit",
+    createListing: "Créer une fiche",
+    pricing: "Tarifs",
+    dashboard: "Tableau de bord",
+    howItWorks: "Comment ça marche",
+    resources: "Ressources",
+    blog: "Blog",
+    faq: "FAQ",
+    amazonSeoGuide: "Guide SEO Amazon 2025",
+    rufusGuide: "Optimiser pour Rufus AI",
+    company: "Entreprise",
     legalNotice: "Mentions Légales",
     privacyPolicy: "Politique de Confidentialité",
     contact: "Contact",
-    createListing: "Créer une fiche",
+    affiliate: "Programme d'affiliation",
+    markets: "Marchés",
+    marketsDesc: "Amazon.fr · Amazon.de · Amazon.es · Amazon.it · Amazon.co.uk · Amazon.com",
+    builtBy: "Créé par un vendeur Amazon, pour les vendeurs Amazon.",
   },
   dashboard: {
     welcome: "Bienvenue",
@@ -261,6 +276,11 @@ export const fr = {
       selectCategory: "Sélectionner une catégorie",
       price: "Prix de vente",
       pricePlaceholder: "29.97",
+      competitors: "ASINs ou URLs des concurrents",
+      competitorsLabel: "ANALYSE CONCURRENTIELLE",
+      competitorsPlaceholder: "B08XYZ1234, B09ABC5678, https://amazon.fr/dp/B07...",
+      competitorsHint: "Collez 3 à 5 ASINs ou URLs Amazon de vos principaux concurrents. Votre listing sera 40% plus précis.",
+      competitorsBadge: "Optionnel · Recommandé",
       next: "Suivant : Photos"
     },
     step2: {
@@ -317,7 +337,12 @@ export const fr = {
       answers: "Répond à :",
       keywordsInBullet: "Mots-clés inclus",
       ppcTitle: "Recommandations PPC",
-      competition: "Concurrence"
+      competition: "Concurrence",
+      strategyDeepDive: "Analyse Stratégique Approfondie",
+      cosmoExplanation: "Optimisation Amazon COSMO (Avril 2026)",
+      rufusExplanation: "Indexation Rufus AI",
+      cosmoDesc: "Nous avons optimisé la hiérarchie de ce listing pour répondre à l'intention d'achat (COSMO), plutôt que de simplement faire correspondre des mots-clés. Cela améliore la visibilité pour les recherches complexes basées sur l'intention.",
+      rufusDesc: "En utilisant un langage conversationnel naturel et des réponses directes aux objections courantes des concurrents, nous garantissons que Rufus (l'assistant IA d'Amazon) peut recommander votre produit dans les interactions par chat."
     },
     sections: {
       title: "Titre",

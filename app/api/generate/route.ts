@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateListing } from "@/lib/claude";
-import { fetchCompetitorsFromRainforest } from "@/lib/rainforest";
+import { fetchCompetitors, parseAsinList } from "@/lib/scraper";
 import { getServerFirestore } from "@/lib/firebase-admin";
 import * as admin from "firebase-admin";
 import { isUserAdmin } from "@/lib/admins";
 import { demoListingEn, demoListingEs, condroListingEs } from "@/lib/demo-listing";
 import { getCurrencySymbol } from "@/lib/currency";
+
+// Allow this route up to 5 minutes to handle scraping + AI generation
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,11 +31,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid marketplace selected." }, { status: 400 });
     }
 
-    // Step 1: Magic Extractor - Get Top Organic Competitors via Rainforest
-    const competitorListings = await fetchCompetitorsFromRainforest(data.productName, data.marketplace);
+    const startTime = performance.now();
 
-    // Step 2: Extract image files for vision analysis (limit to 5)
-    const imageFiles = (formData.getAll("images") as File[]).slice(0, 5);
+    // Step 1: Scrape competitor listings (user-provided ASINs take priority)
+    const scraperStart = performance.now();
+    const userAsins = parseAsinList(data.competitorAsins ?? "");
+    if (userAsins.length > 0) {
+      console.log(`[SCRAPER] Using ${userAsins.length} user-provided ASINs: ${userAsins.join(", ")}`);
+    }
+    const competitorListings = await fetchCompetitors(data.productName, data.marketplace, userAsins);
+    const scraperEnd = performance.now();
+    console.log(`[PERF] Competitor extraction took ${((scraperEnd - scraperStart) / 1000).toFixed(2)}s`);
+
+    // Step 2: Extract image files for vision analysis (limit to 3 for stability)
+    const imageStart = performance.now();
+    const imageFiles = (formData.getAll("images") as File[]).slice(0, 3);
     const imageContents: { type: "image"; media_type: string; data: string }[] = [];
 
     for (const file of imageFiles) {
@@ -40,13 +53,15 @@ export async function POST(req: NextRequest) {
       const base64 = buffer.toString("base64");
       const mediaType = file.type || "image/jpeg";
       imageContents.push({ type: "image", media_type: mediaType, data: base64 });
-      console.log(`Image ${imageContents.length} size: ${(buffer.length / 1024).toFixed(2)} KB (Base64: ${(base64.length / 1024).toFixed(2)} KB)`);
     }
+    const imageEnd = performance.now();
+    console.log(`[PERF] Image processing took ${((imageEnd - imageStart) / 1000).toFixed(2)}s`);
 
     const totalPayloadSize = JSON.stringify({ ...data, competitorListings, images: imageContents }).length;
     console.log(`Total payload size: ${(totalPayloadSize / 1024 / 1024).toFixed(2)} MB`);
 
     // Step 3: Trigger the Claude Brain
+    const aiStart = performance.now();
     let result;
     try {
       result = await generateListing({
@@ -60,9 +75,9 @@ export async function POST(req: NextRequest) {
         images: imageContents,
       });
     } catch (apiError: any) {
-      // Check if it's an Anthropic credit balance error
-      if (apiError?.message?.includes("credit balance is too low") || apiError?.status === 400) {
-        console.warn("Anthropic balance low. Falling back to high-quality demo listing for testing.");
+      // Check if it's an Anthropic credit balance error or other recoverable error
+      if (apiError?.message?.includes("credit balance") || apiError?.status === 400) {
+        console.warn("Anthropic issue. Falling back to high-quality demo listing for testing.");
         const isSpanishOrItalian = ["es", "it"].includes(data.marketplace);
         const isCondroTest = 
           data.productName?.toLowerCase().includes("condro") || 
@@ -82,11 +97,15 @@ export async function POST(req: NextRequest) {
           isDemo: true // Flag to show it in the UI
         };
       } else {
+        // Rethrow critical errors (timeout, invalid key, etc.)
         throw apiError;
       }
     }
+    const aiEnd = performance.now();
+    console.log(`[PERF] AI Generation took ${((aiEnd - aiStart) / 1000).toFixed(2)}s`);
 
     // Step 4: Save to Firestore + decrement credits if userId is present
+    const dbStart = performance.now();
     let listingId = null;
     if (userId) {
       try {
@@ -134,15 +153,19 @@ export async function POST(req: NextRequest) {
         }
       } catch (saveError) {
         console.error("Firestore save error:", saveError);
-        // Return result even if save fails, but without an ID
       }
     }
+    const dbEnd = performance.now();
+    console.log(`[PERF] Firestore & Credits took ${((dbEnd - dbStart) / 1000).toFixed(2)}s`);
+    console.log(`[TOTAL PERF] Full request took ${((performance.now() - startTime) / 1000).toFixed(2)}s`);
 
     return NextResponse.json({ ...result, listingId });
   } catch (error: any) {
-    console.error("Generate error:", error);
+    console.error("Generate API Error:", error);
+    // Determine the most specific error message to return
+    const errorMessage = error instanceof Error ? error.message : "Failed to generate listing. Please try again.";
     return NextResponse.json(
-      { error: error?.message || "Failed to generate listing. Please try again." },
+      { error: errorMessage },
       { status: 500 }
     );
   }

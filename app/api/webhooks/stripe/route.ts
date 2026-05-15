@@ -78,9 +78,9 @@ export async function POST(req: NextRequest) {
       if (promoCodeId) {
         // Retrieve the promotion code object to get the actual "code" (e.g., VIVIENDODEAMAZON)
         const promoCode = await stripe.promotionCodes.retrieve(promoCodeId as string);
-        const codeString = promoCode.code;
+        const codeString = promoCode.code.toUpperCase(); // Ensure consistency
 
-        console.log(`Detected affiliate code used: ${codeString}`);
+        console.log(`[Affiliate] Detected code: ${codeString}`);
 
         const affiliateRef = db.collection("affiliates").doc(codeString);
         const affiliateSnap = await affiliateRef.get();
@@ -89,21 +89,29 @@ export async function POST(req: NextRequest) {
           const affiliateData = affiliateSnap.data()!;
           const commissionPct = affiliateData.commissionPct || 20;
           const amountPaid = (session.amount_total || 0) / 100;
-          const commissionAmount = (amountPaid * commissionPct) / 100;
+          const commissionAmount = parseFloat(((amountPaid * commissionPct) / 100).toFixed(2));
+
+          const saleData = {
+            userId: firebaseUserId,
+            amount: amountPaid,
+            commission: commissionAmount,
+            date: new Date().toISOString(),
+            stripeSessionId: session.id,
+            plan: plan
+          };
 
           batch.update(affiliateRef, {
             earningsTotal: admin.firestore.FieldValue.increment(commissionAmount),
-            recentSales: admin.firestore.FieldValue.arrayUnion({
-              userId: firebaseUserId,
-              amount: amountPaid,
-              commission: commissionAmount,
-              date: new Date().toISOString(),
-            })
+            recentSales: admin.firestore.FieldValue.arrayUnion(saleData),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
           });
           
-          console.log(`Rewarding affiliate ${codeString} with ${commissionAmount} commission`);
+          console.log(`[Affiliate] Attributing ${commissionAmount} ${session.currency} to ${codeString}`);
         } else {
-          console.warn(`Affiliate code ${codeString} used but no document found in Firestore.`);
+          console.warn(`[Affiliate] Code ${codeString} used but NO record found in Firestore. Check 'affiliates' collection.`);
+          
+          // Optionally auto-create the affiliate with default 20% if we want to be permissive
+          // For now, we stick to manual influencer onboarding for safety.
         }
       }
 

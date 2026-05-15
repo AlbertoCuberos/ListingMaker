@@ -203,10 +203,25 @@ export const en = {
   },
   footer: {
     rights: "All rights reserved.",
+    tagline: "The fastest way to rank higher on Amazon.",
+    product: "Product",
+    createListing: "Create Listing",
+    pricing: "Pricing",
+    dashboard: "Dashboard",
+    howItWorks: "How It Works",
+    resources: "Resources",
+    blog: "Blog",
+    faq: "FAQ",
+    amazonSeoGuide: "Amazon SEO Guide 2025",
+    rufusGuide: "Optimize for Rufus AI",
+    company: "Company",
     legalNotice: "Legal Notice",
     privacyPolicy: "Privacy Policy",
     contact: "Contact",
-    createListing: "Create Listing",
+    affiliate: "Affiliate Program",
+    markets: "Markets",
+    marketsDesc: "Amazon.es · Amazon.de · Amazon.fr · Amazon.it · Amazon.co.uk · Amazon.com",
+    builtBy: "Built by an Amazon seller, for Amazon sellers.",
   },
   dashboard: {
     welcome: "Welcome",
@@ -274,6 +289,11 @@ export const en = {
       selectCategory: "Select category",
       price: "Selling Price (USD)",
       pricePlaceholder: "29.97",
+      competitors: "Competitor ASINs or URLs",
+      competitorsLabel: "COMPETITOR ANALYSIS",
+      competitorsPlaceholder: "B08XYZ1234, B09ABC5678, https://amazon.com/dp/B07...",
+      competitorsHint: "Paste 3–5 ASINs or Amazon URLs of your top competitors. Your listing will be 40% more accurate.",
+      competitorsBadge: "Optional · Recommended",
       next: "Next: Upload Photos"
     },
     step2: {
@@ -330,7 +350,12 @@ export const en = {
       answers: "Answers:",
       keywordsInBullet: "Keywords in this bullet",
       ppcTitle: "PPC Campaign Recommendations",
-      competition: "Competition"
+      competition: "Competition",
+      strategyDeepDive: "Strategic Deep Dive",
+      cosmoExplanation: "Amazon COSMO ({{date}})",
+      rufusExplanation: "Rufus AI Indexing",
+      cosmoDesc: "We have optimized this listing's hierarchy to answer 'buyer intent' (COSMO), rather than just matching keywords. This improves visibility for complex, intent-driven searches.",
+      rufusDesc: "Using natural conversational language and direct answers to common competitor objections, we ensure Rufus (Amazon's AI assistant) can recommend your product in chat interactions."
     },
     sections: {
       title: "Title",

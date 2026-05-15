@@ -31,15 +31,15 @@ export default function ParticleField() {
     };
 
     const createParticles = () => {
-      const count = Math.floor((canvas.width * canvas.height) / 15000);
+      const count = Math.floor((canvas.width * canvas.height) / 12000);
       particles = Array.from({ length: count }, () => ({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
         vx: (Math.random() - 0.5) * 0.3,
         vy: (Math.random() - 0.5) * 0.3,
-        size: Math.random() * 1.5 + 0.5,
-        opacity: Math.random() * 0.5 + 0.1,
-        color: Math.random() > 0.85 ? "#f97316" : "#ffffff",
+        size: Math.random() * 2 + 0.5,
+        opacity: Math.random() * 0.75 + 0.25,
+        color: Math.random() > 0.8 ? "#f97316" : "#ffffff",
       }));
     };
 
@@ -71,7 +71,7 @@ export default function ParticleField() {
         ctx.fillStyle =
           p.color === "#f97316"
             ? `rgba(249, 115, 22, ${p.opacity})`
-            : `rgba(255, 255, 255, ${p.opacity * 0.4})`;
+            : `rgba(255, 255, 255, ${p.opacity * 0.7})`;
         ctx.fill();
 
         // Draw connections
@@ -80,12 +80,12 @@ export default function ParticleField() {
           const ddx = p.x - p2.x;
           const ddy = p.y - p2.y;
           const d = Math.sqrt(ddx * ddx + ddy * ddy);
-          if (d < 100) {
+          if (d < 110) {
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = `rgba(249, 115, 22, ${0.06 * (1 - d / 100)})`;
-            ctx.lineWidth = 0.5;
+            ctx.strokeStyle = `rgba(249, 115, 22, ${0.12 * (1 - d / 110)})`;
+            ctx.lineWidth = 0.6;
             ctx.stroke();
           }
         }
@@ -120,7 +120,7 @@ export default function ParticleField() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none z-0"
-      style={{ opacity: 0.6 }}
+      style={{ opacity: 0.9 }}
     />
   );
 }

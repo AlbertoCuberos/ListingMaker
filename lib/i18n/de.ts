@@ -203,10 +203,25 @@ export const de = {
   },
   footer: {
     rights: "Alle Rechte vorbehalten.",
+    tagline: "Der schnellste Weg, auf Amazon besser zu ranken.",
+    product: "Produkt",
+    createListing: "Listing erstellen",
+    pricing: "Preise",
+    dashboard: "Dashboard",
+    howItWorks: "So funktioniert's",
+    resources: "Ressourcen",
+    blog: "Blog",
+    faq: "FAQ",
+    amazonSeoGuide: "Amazon SEO Guide 2025",
+    rufusGuide: "Für Rufus AI optimieren",
+    company: "Unternehmen",
     legalNotice: "Impressum",
     privacyPolicy: "Datenschutz",
     contact: "Kontakt",
-    createListing: "Listing erstellen",
+    affiliate: "Partnerprogramm",
+    markets: "Märkte",
+    marketsDesc: "Amazon.de · Amazon.es · Amazon.fr · Amazon.it · Amazon.co.uk · Amazon.com",
+    builtBy: "Von einem Amazon-Seller, für Amazon-Seller.",
   },
   dashboard: {
     welcome: "Willkommen",
@@ -274,6 +289,11 @@ export const de = {
       selectCategory: "Kategorie wählen",
       price: "Verkaufspreis (EUR)",
       pricePlaceholder: "29,97",
+      competitors: "Wettbewerber-ASINs oder URLs",
+      competitorsLabel: "WETTBEWERBSANALYSE",
+      competitorsPlaceholder: "B08XYZ1234, B09ABC5678, https://amazon.de/dp/B07...",
+      competitorsHint: "Füge 3–5 ASINs oder Amazon-URLs deiner wichtigsten Wettbewerber ein. Dein Listing wird 40% präziser.",
+      competitorsBadge: "Optional · Empfohlen",
       next: "Weiter: Fotos hochladen"
     },
     step2: {
@@ -330,7 +350,12 @@ export const de = {
       answers: "Beantwortet:",
       keywordsInBullet: "Keywords in diesem Punkt",
       ppcTitle: "PPC-Kampagnenempfehlungen",
-      competition: "Wettbewerb"
+      competition: "Wettbewerb",
+      strategyDeepDive: "Strategischer Deep Dive",
+      cosmoExplanation: "Amazon COSMO ({{date}})",
+      rufusExplanation: "Rufus AI Indexierung",
+      cosmoDesc: "Wir haben die Hierarchie dieses Listings optimiert, um auf die 'Käuferabsicht' (COSMO) zu reagieren, statt nur Keywords abzugleichen. Dies verbessert die Sichtbarkeit bei komplexen, absichtsorientierten Suchen.",
+      rufusDesc: "Durch die Verwendung natürlicher Konversationssprache und direkter Antworten auf häufige Wettbewerber-Einwände stellen wir sicher, dass Rufus (Amazons KI-Assistent) Ihr Produkt in Chat-Interaktionen empfehlen kann."
     },
     sections: {
       title: "Titel",
