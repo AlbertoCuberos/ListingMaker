@@ -35,9 +35,9 @@ export default function Navbar() {
           </Link>
 
           <div className="hidden md:flex items-center gap-6">
-            <a href="#how-it-works" className="text-sm text-gray-400 hover:text-white transition">{t.nav.howItWorks}</a>
-            <a href="#pricing" className="text-sm text-gray-400 hover:text-white transition">{t.nav.pricing}</a>
-            <a href="#faq" className="text-sm text-gray-400 hover:text-white transition">{t.nav.faq}</a>
+            <Link href="/#how-it-works" className="text-sm text-gray-400 hover:text-white transition">{t.nav.howItWorks}</Link>
+            <Link href="/#pricing" className="text-sm text-gray-400 hover:text-white transition">{t.nav.pricing}</Link>
+            <Link href="/#faq" className="text-sm text-gray-400 hover:text-white transition">{t.nav.faq}</Link>
             <LanguageSwitcher />
             {!loading && (
               user ? (
@@ -66,9 +66,9 @@ export default function Navbar() {
 
       {mobileOpen && (
         <div className="md:hidden bg-[#0a0a10]/95 backdrop-blur-xl border-t border-white/5 px-4 py-4 space-y-3">
-          <a href="#how-it-works" className="block text-sm text-gray-400" onClick={() => setMobileOpen(false)}>{t.nav.howItWorks}</a>
-          <a href="#pricing" className="block text-sm text-gray-400" onClick={() => setMobileOpen(false)}>{t.nav.pricing}</a>
-          <a href="#faq" className="block text-sm text-gray-400" onClick={() => setMobileOpen(false)}>{t.nav.faq}</a>
+          <Link href="/#how-it-works" className="block text-sm text-gray-400" onClick={() => setMobileOpen(false)}>{t.nav.howItWorks}</Link>
+          <Link href="/#pricing" className="block text-sm text-gray-400" onClick={() => setMobileOpen(false)}>{t.nav.pricing}</Link>
+          <Link href="/#faq" className="block text-sm text-gray-400" onClick={() => setMobileOpen(false)}>{t.nav.faq}</Link>
           {!loading && (
             user ? (
               <Link href="/dashboard" className="block text-center bg-orange-500 text-white text-sm font-medium px-5 py-2.5 rounded-lg" onClick={() => setMobileOpen(false)}>{t.nav.dashboard}</Link>
