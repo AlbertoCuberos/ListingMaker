@@ -106,7 +106,7 @@ export default function AffiliatePage() {
               { num: "03", title: a.step3Title, desc: a.step3Desc },
             ].map((s) => (
               <div key={s.num} className="relative">
-                <div className="text-6xl font-bold text-white/5 mb-4">{s.num}</div>
+                <div className="text-6xl font-bold text-green-400/80 mb-4">{s.num}</div>
                 <h3 className="text-lg font-semibold mb-2">{s.title}</h3>
                 <p className="text-gray-400 leading-relaxed">{s.desc}</p>
               </div>
