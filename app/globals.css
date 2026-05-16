@@ -189,6 +189,52 @@ body {
   opacity: 1;
   animation: border-shimmer 3s infinite linear;
 }
+
+/* Green CTA button with spinning border */
+@keyframes rotate-border {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.btn-green-glow {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 2rem;
+  font-weight: 600;
+  font-size: 1.125rem;
+  color: #fff;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  transition: filter 0.2s ease, transform 0.2s ease;
+  z-index: 0;
+}
+
+.btn-green-glow:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.btn-green-glow::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 0.875rem;
+  background: conic-gradient(from 0deg, transparent 0deg, #4ade80 60deg, #86efac 120deg, transparent 180deg);
+  animation: rotate-border 2.5s linear infinite;
+  z-index: -1;
+}
+
+.btn-green-glow::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: calc(0.75rem - 2px);
+  background: linear-gradient(135deg, #15803d, #16a34a, #22c55e);
+  z-index: -1;
+}
 /* Print & PDF Export Styles */
 @media print {
   body {

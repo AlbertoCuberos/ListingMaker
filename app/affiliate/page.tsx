@@ -43,22 +43,19 @@ export default function AffiliatePage() {
       {/* Hero */}
       <section className="pt-32 pb-20 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <span className="inline-block mb-6 px-4 py-2 rounded-full text-sm font-medium bg-orange-500/10 border border-orange-500/20 text-orange-400">
+          <span className="inline-block mb-6 px-4 py-2 rounded-full text-sm font-medium bg-green-500/10 border border-green-500/30 text-green-400">
             {a.badge}
           </span>
           <h1 className="text-5xl md:text-6xl font-bold leading-tight mb-6">
             {a.title1}
             <br />
-            <span className="text-orange-400">{a.title2}</span>
+            <span className="text-green-400">{a.title2}</span>
           </h1>
           <p className="text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
             {a.subtitle}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
-              href="#apply"
-              className="px-8 py-4 bg-orange-500 hover:bg-orange-400 text-white font-semibold rounded-xl transition-colors text-lg"
-            >
+            <a href="#apply" className="btn-green-glow">
               {a.cta}
             </a>
             <a
@@ -224,7 +221,7 @@ export default function AffiliatePage() {
               <button
                 type="submit"
                 disabled={status === "sending"}
-                className="w-full py-4 bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors text-lg"
+                className="btn-green-glow w-full disabled:opacity-50"
               >
                 {status === "sending" ? "..." : a.formSubmit}
               </button>
