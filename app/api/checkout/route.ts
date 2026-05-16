@@ -18,8 +18,9 @@ export async function POST(req: NextRequest) {
 
     const credits = getCreditsForPlan(plan);
 
-    // TODO: Get user profile from Firestore when backend is configured
-    // For now, create a customer without storing in DB
+    // Read affiliate ref from cookie (set by middleware when ?ref=CODE is in URL)
+    const refCode = req.cookies.get("lm_ref")?.value || null;
+
     const customer = await stripe.customers.create({
       metadata: { firebaseUserId: userId },
     });
@@ -36,6 +37,7 @@ export async function POST(req: NextRequest) {
         firebaseUserId: userId,
         plan,
         credits: credits.toString(),
+        ...(refCode ? { ref_code: refCode } : {}),
       },
       success_url: `${appUrl}/dashboard?payment=success`,
       cancel_url: `${appUrl}/dashboard?payment=cancelled`,

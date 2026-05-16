@@ -111,9 +111,35 @@ export async function POST(req: NextRequest) {
           console.log(`[Affiliate] Attributing ${commissionAmount} ${session.currency} to ${codeString}`);
         } else {
           console.warn(`[Affiliate] Code ${codeString} used but NO record found in Firestore. Check 'affiliates' collection.`);
-          
-          // Optionally auto-create the affiliate with default 20% if we want to be permissive
-          // For now, we stick to manual influencer onboarding for safety.
+        }
+      } else {
+        // Fallback: check ref_code from metadata (cookie tracking without promo code)
+        const refCode = session.metadata?.ref_code;
+        if (refCode) {
+          const affiliateRef = db.collection("affiliates").doc(refCode);
+          const affiliateSnap = await affiliateRef.get();
+          if (affiliateSnap.exists) {
+            const affiliateData = affiliateSnap.data()!;
+            const commissionPct = affiliateData.commissionPct || 20;
+            const amountPaid = (session.amount_total || 0) / 100;
+            const commissionAmount = parseFloat(((amountPaid * commissionPct) / 100).toFixed(2));
+            const saleData = {
+              userId: firebaseUserId,
+              amount: amountPaid,
+              commission: commissionAmount,
+              date: new Date().toISOString(),
+              stripeSessionId: session.id,
+              plan: plan,
+              source: "ref_link",
+            };
+            const adminInst = await getAdminInstance();
+            batch.update(affiliateRef, {
+              earningsTotal: adminInst.firestore.FieldValue.increment(commissionAmount),
+              recentSales: adminInst.firestore.FieldValue.arrayUnion(saleData),
+              updatedAt: adminInst.firestore.FieldValue.serverTimestamp(),
+            });
+            console.log(`[Affiliate] Attributing ${commissionAmount} via ref_link to ${refCode}`);
+          }
         }
       }
 
