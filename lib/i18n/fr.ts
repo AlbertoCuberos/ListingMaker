@@ -212,7 +212,7 @@ export const fr = {
     resources: "Ressources",
     blog: "Blog",
     faq: "FAQ",
-    amazonSeoGuide: "Guide SEO Amazon 2025",
+    amazonSeoGuide: "Guide SEO Amazon 2026",
     rufusGuide: "Optimiser pour Rufus AI",
     company: "Entreprise",
     legalNotice: "Mentions Légales",
