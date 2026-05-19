@@ -270,7 +270,7 @@ export const it = {
       name: "Nome del prodotto",
       namePlaceholder: "es: Gummies Proteina Isolata Vaniglia Cookies",
       brand: "Marca",
-      brandPlaceholder: "es: PetVitality",
+      brandPlaceholder: "es: ProGummy",
       marketplace: "Marketplace",
       category: "Categoria",
       selectCategory: "Seleziona categoria",

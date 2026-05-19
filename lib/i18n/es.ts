@@ -348,7 +348,7 @@ export const es = {
       name: "Nombre del Producto",
       namePlaceholder: "ej. Gummies Proteína Isolada Vainilla Cookies",
       brand: "Nombre de la Marca",
-      brandPlaceholder: "ej. PetVitality",
+      brandPlaceholder: "ej. ProGummy",
       marketplace: "Marketplace",
       category: "Categoría",
       selectCategory: "Seleccionar categoría",
