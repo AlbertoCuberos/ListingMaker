@@ -321,7 +321,7 @@ export const de = {
     ],
     categories: [
       "Tierbedarf",
-      "Gesundheit & Haushalt",
+      "Gesundheit & Wellness",
       "Schönheit & Körperpflege",
       "Sport & Freizeit",
       "Küche & Haushalt",
@@ -330,7 +330,7 @@ export const de = {
       "Garten & Outdoor",
       "Werkzeug & Heimwerker",
       "Elektronik",
-      "Spielzeug",
+      "Spielzeug & Spiele",
       "Kleidung & Accessoires",
       "Sonstiges"
     ],

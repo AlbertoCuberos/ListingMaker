@@ -321,7 +321,7 @@ export const es = {
     ],
     categories: [
       "Mascotas",
-      "Salud y Hogar",
+      "Salud y Bienestar",
       "Belleza y Cuidado Personal",
       "Deportes y Exterior",
       "Hogar y Cocina",

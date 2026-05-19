@@ -254,7 +254,19 @@ export const it = {
       "Revisione Finale"
     ],
     categories: [
-      "Animali", "Salute", "Bellezza", "Sport", "Casa", "Infanzia", "Alimentari", "Giardino", "Fai da te", "Elettronica", "Giochi", "Abbigliamento", "Altro"
+      "Animali e Accessori",
+      "Salute e Benessere",
+      "Bellezza e Cura Personale",
+      "Sport e Tempo Libero",
+      "Casa e Cucina",
+      "Prima Infanzia",
+      "Alimentari e Gastronomia",
+      "Giardino e Giardinaggio",
+      "Fai da Te e Ferramenta",
+      "Elettronica",
+      "Giochi e Giocattoli",
+      "Abbigliamento e Accessori",
+      "Altro"
     ],
     marketplaces: {
       us: "Stati Uniti (amazon.com)",

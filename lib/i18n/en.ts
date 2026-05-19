@@ -321,7 +321,7 @@ export const en = {
     ],
     categories: [
       "Pet Supplies",
-      "Health & Household",
+      "Health & Wellness",
       "Beauty & Personal Care",
       "Sports & Outdoors",
       "Home & Kitchen",
