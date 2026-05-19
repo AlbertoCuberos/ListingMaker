@@ -1,5 +1,5 @@
-// Amazon scraper using fetch + cheerio (no native binaries, Vercel-compatible)
-// Amazon SSR-renders title, bullets, price, rating in the initial HTML
+// Amazon scraper — fetch + cheerio, Vercel-compatible
+// Improvements: cookie chaining, per-locale Accept-Language, sequential fetching, referer spoofing
 
 import * as cheerio from "cheerio";
 
@@ -21,7 +21,79 @@ const domainMap: Record<string, string> = {
   es: "www.amazon.es",
 };
 
-// Extract ASIN from a URL or return as-is if already an ASIN
+const languageMap: Record<string, string> = {
+  us: "en-US,en;q=0.9",
+  uk: "en-GB,en;q=0.9,en-US;q=0.8",
+  de: "de-DE,de;q=0.9,en;q=0.8",
+  fr: "fr-FR,fr;q=0.9,en;q=0.8",
+  it: "it-IT,it;q=0.9,en;q=0.8",
+  es: "es-ES,es;q=0.9,en;q=0.8",
+};
+
+const USER_AGENTS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+];
+
+function randomUA() {
+  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function buildHeaders(locale: string, referer?: string, cookies?: string): Record<string, string> {
+  const ua = randomUA();
+  const isFirefox = ua.includes("Firefox");
+  return {
+    "User-Agent": ua,
+    "Accept": isFirefox
+      ? "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+      : "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+    "Accept-Language": languageMap[locale] ?? "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Cache-Control": "max-age=0",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    ...(isFirefox ? {
+      "Sec-Fetch-Dest": "document",
+      "Sec-Fetch-Mode": "navigate",
+      "Sec-Fetch-Site": referer ? "same-origin" : "none",
+      "Sec-Fetch-User": "?1",
+      "DNT": "1",
+    } : {
+      "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": '"Windows"',
+      "sec-fetch-dest": "document",
+      "sec-fetch-mode": "navigate",
+      "sec-fetch-site": referer ? "same-origin" : "none",
+      "sec-fetch-user": "?1",
+    }),
+    ...(referer ? { Referer: referer } : {}),
+    ...(cookies ? { Cookie: cookies } : {}),
+  };
+}
+
+function extractSetCookies(res: Response): string {
+  // Node fetch doesn't expose multiple Set-Cookie headers via .get()
+  // We get what we can from the combined header
+  const raw = res.headers.get("set-cookie") ?? "";
+  if (!raw) return "";
+  // Each directive is separated by comma, but cookie values may contain commas
+  // Safe approach: split on ", " followed by known cookie names
+  return raw
+    .split(/,(?=[a-zA-Z0-9_-]+=)/)
+    .map((c) => c.split(";")[0].trim())
+    .filter(Boolean)
+    .join("; ");
+}
+
+// Export for ASIN parsing
 export function parseAsin(input: string): string | null {
   const trimmed = input.trim();
   if (/^[A-Z0-9]{10}$/.test(trimmed)) return trimmed;
@@ -30,7 +102,6 @@ export function parseAsin(input: string): string | null {
   return null;
 }
 
-// Parse a comma/space/newline-separated list of ASINs or URLs
 export function parseAsinList(raw: string): string[] {
   if (!raw?.trim()) return [];
   return raw
@@ -40,35 +111,33 @@ export function parseAsinList(raw: string): string[] {
     .slice(0, 10);
 }
 
-const USER_AGENTS = [
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-];
+// Two-step fetch: warm up cookies on search page, then fetch product page
+async function fetchProductPage(domain: string, asin: string, locale: string): Promise<string | null> {
+  const searchUrl = `https://${domain}/s?k=${encodeURIComponent(asin)}`;
+  const productUrl = `https://${domain}/dp/${asin}?th=1&psc=1`;
 
-function randomUA() {
-  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
-}
+  let cookies = "";
 
-async function fetchPage(url: string): Promise<string | null> {
+  // Step 1: hit search page to get cookies (like a real browser would)
   try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": randomUA(),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
-        "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"macOS"',
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Upgrade-Insecure-Requests": "1",
-      },
-      signal: AbortSignal.timeout(12000),
+    const warmRes = await fetch(searchUrl, {
+      headers: buildHeaders(locale),
+      signal: AbortSignal.timeout(8000),
+      redirect: "follow",
+    });
+    cookies = extractSetCookies(warmRes);
+    // Small human-like delay between requests
+    await sleep(600 + Math.random() * 900);
+  } catch {
+    // Continue without cookies — better than failing completely
+  }
+
+  // Step 2: fetch product page with cookies + referer
+  try {
+    const res = await fetch(productUrl, {
+      headers: buildHeaders(locale, searchUrl, cookies || undefined),
+      signal: AbortSignal.timeout(10000),
+      redirect: "follow",
     });
     if (!res.ok) return null;
     return await res.text();
@@ -77,12 +146,17 @@ async function fetchPage(url: string): Promise<string | null> {
   }
 }
 
-async function scrapeAsin(domain: string, asin: string): Promise<CompetitorProduct | null> {
-  const html = await fetchPage(`https://${domain}/dp/${asin}`);
+async function scrapeAsin(domain: string, asin: string, locale: string): Promise<CompetitorProduct | null> {
+  const html = await fetchProductPage(domain, asin, locale);
   if (!html) return null;
 
-  // If Amazon redirected to CAPTCHA/signin page, bail
-  if (html.includes("robot check") || html.includes("Type the characters") || html.includes("ap/signin")) {
+  if (
+    html.includes("robot check") ||
+    html.includes("Type the characters") ||
+    html.includes("ap/signin") ||
+    html.includes("api-services-support@amazon.com") ||
+    html.length < 5000
+  ) {
     console.warn(`[SCRAPER] Bot detection on ASIN ${asin}`);
     return null;
   }
@@ -100,25 +174,40 @@ async function scrapeAsin(domain: string, asin: string): Promise<CompetitorProdu
     }
   });
 
-  const price = $(".a-price .a-offscreen").first().text().trim() || undefined;
-  const rating = $("[data-hook='average-star-rating'] .a-icon-alt").first().text().split(" ")[0] || undefined;
-  const reviewCount = $("[data-hook='total-review-count']").first().text().trim() || undefined;
+  const price =
+    $(".a-price .a-offscreen").first().text().trim() ||
+    $("#priceblock_ourprice").text().trim() ||
+    undefined;
+  const rating =
+    $("[data-hook='average-star-rating'] .a-icon-alt").first().text().split(" ")[0] ||
+    $(".a-icon-star .a-icon-alt").first().text().split(" ")[0] ||
+    undefined;
+  const reviewCount =
+    $("[data-hook='total-review-count']").first().text().trim() || undefined;
 
   return { title, asin, bullets, price, rating, reviewCount };
 }
 
-async function searchAsins(domain: string, keyword: string): Promise<string[]> {
-  const html = await fetchPage(`https://${domain}/s?k=${encodeURIComponent(keyword)}`);
-  if (!html) return [];
-
-  const $ = cheerio.load(html);
-  const asins: string[] = [];
-  $("[data-asin]").each((_, el) => {
-    const asin = $(el).attr("data-asin") ?? "";
-    if (/^[A-Z0-9]{10}$/.test(asin)) asins.push(asin);
-  });
-
-  return [...new Set(asins)].slice(0, 10);
+async function searchAsins(domain: string, keyword: string, locale: string): Promise<string[]> {
+  const url = `https://${domain}/s?k=${encodeURIComponent(keyword)}`;
+  try {
+    const res = await fetch(url, {
+      headers: buildHeaders(locale),
+      signal: AbortSignal.timeout(10000),
+      redirect: "follow",
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const $ = cheerio.load(html);
+    const asins: string[] = [];
+    $("[data-asin]").each((_, el) => {
+      const asin = $(el).attr("data-asin") ?? "";
+      if (/^[A-Z0-9]{10}$/.test(asin)) asins.push(asin);
+    });
+    return [...new Set(asins)].slice(0, 8);
+  } catch {
+    return [];
+  }
 }
 
 function formatCompetitorData(products: CompetitorProduct[]): string {
@@ -136,46 +225,50 @@ function formatCompetitorData(products: CompetitorProduct[]): string {
 }
 
 function buildFallbackMessage(searchTerm: string, marketplace: string): string {
-  return `[NOTE: Live Amazon scraping did not return results for "${searchTerm}" on Amazon.${marketplace}. This may be due to Amazon rate-limiting or CAPTCHA. Generate the listing based on the product information provided, general category knowledge, and best practices. DO NOT invent competitor data or fake search volumes.]`;
+  return `[NOTE: Live Amazon scraping did not return results for "${searchTerm}" on Amazon.${marketplace}. Generate the listing based on the product information provided and category best practices. DO NOT invent competitor data.]`;
 }
 
-// Main entry point — called from /api/generate
 export async function fetchCompetitors(
   searchTerm: string,
   marketplace: string,
   userAsins?: string[]
 ): Promise<string> {
   const domain = domainMap[marketplace] ?? domainMap.us;
+  const locale = marketplace;
+
+  // Hard budget: max 45s total for scraping phase
+  const deadline = Date.now() + 45_000;
 
   try {
     let asins: string[] = userAsins?.length ? userAsins : [];
 
     if (asins.length === 0) {
-      console.log(`[SCRAPER] No ASINs provided. Searching ${domain} for: "${searchTerm}"`);
-      asins = await searchAsins(domain, searchTerm);
+      console.log(`[SCRAPER] No ASINs — searching ${domain} for: "${searchTerm}"`);
+      asins = await searchAsins(domain, searchTerm, locale);
       if (asins.length === 0) return buildFallbackMessage(searchTerm, marketplace);
-      console.log(`[SCRAPER] Found ${asins.length} ASINs from search.`);
-    } else {
-      console.log(`[SCRAPER] Using ${asins.length} user-provided ASINs on ${domain}`);
     }
 
-    const toFetch = asins.slice(0, 5);
-    const results = await Promise.allSettled(
-      toFetch.map((asin) => scrapeAsin(domain, asin))
-    );
+    // Fetch sequentially (not parallel) to look more human + avoid IP throttle
+    const toFetch = asins.slice(0, 4);
+    const products: CompetitorProduct[] = [];
 
-    const products: CompetitorProduct[] = results
-      .filter(
-        (r): r is PromiseFulfilledResult<CompetitorProduct> =>
-          r.status === "fulfilled" && r.value !== null && !!r.value?.title
-      )
-      .map((r) => r.value);
+    for (const asin of toFetch) {
+      if (Date.now() > deadline) {
+        console.warn(`[SCRAPER] Time budget exhausted — stopping at ${products.length} competitors`);
+        break;
+      }
+      const product = await scrapeAsin(domain, asin, locale);
+      if (product) products.push(product);
+      // Random delay between product pages (500ms–1.5s)
+      if (Date.now() < deadline) await sleep(500 + Math.random() * 1000);
+    }
 
-    console.log(`[SCRAPER] ✓ Scraped ${products.length}/${toFetch.length} competitor listings`);
+    console.log(`[SCRAPER] ✓ ${products.length}/${toFetch.length} competitors scraped`);
 
     return products.length > 0
       ? formatCompetitorData(products)
       : buildFallbackMessage(searchTerm, marketplace);
+
   } catch (err) {
     console.error("[SCRAPER] Critical error:", err);
     return buildFallbackMessage(searchTerm, marketplace);
