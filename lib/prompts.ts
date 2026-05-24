@@ -98,6 +98,9 @@ Your title MUST use between 195 and 200 characters. Every unused character is wa
 - Pack maximum keyword diversity. Use every available character.
 - Must read naturally as an answer to "What is this product?"
 - Count your characters. If under 195, ADD more qualifying terms, specs, or trust signals.
+- ALWAYS include the product FORMAT if it defines search behavior (e.g. Soft Chews, Gummies, Spray, Gel, Capsules, Croquettes, Bouchées...). Buyers search by format — missing it means invisible for those searches.
+- ALWAYS include palatability/taste keywords if relevant and buyers search for them (e.g. "Haute Appétence", "Appétissant", "Goût Poulet"...). These are high-intent differentiators.
+- After writing your title, count every single character manually. Do NOT submit a title under 195 characters.
 
 ═══ 2. BULLET POINTS (5 bullets, 400-500 chars each) ═══
 - Format: BENEFIT IN CAPS — then natural prose (feature → proof → context).
@@ -115,15 +118,18 @@ Your title MUST use between 195 and 200 characters. Every unused character is wa
 - Conversational tone. Rufus AI reads this for indexing even when A+ Content is active.
 - Structure: Problem → Solution → Differentiator → Specs → Audience → Usage → CTA.
 
-═══ 5. BACKEND SEARCH TERMS (CRITICAL — target 490-500 bytes) ═══
+═══ 5. BACKEND SEARCH TERMS (HARD LIMIT — MAXIMUM 490 bytes) ═══
+⚠️ CRITICAL: Amazon has a HARD LIMIT of 500 bytes. If you exceed it, Amazon SILENTLY REJECTS the ENTIRE field — zero keywords get indexed.
+- Standard letters = 1 byte each. Accented characters (é, è, ê, ë, ñ, ü, ö, ä, ç, etc.) = 2 bytes each. Count carefully.
+- TARGET: 470-490 bytes MAX. Leave a safety margin. It is BETTER to have 460 quality bytes than 502 bytes that get rejected entirely.
 - WRITE IN ${config.lang}. At least 85% of the bytes must be in the marketplace language.
 - NEVER use commas. Space-separated words ONLY.
 - ZERO repetition: never include ANY word already in title, bullets, or description.
-- ZERO repetition within the backend itself — every word must appear exactly once.
-- Target 490-500 bytes. Every unused byte is wasted indexation.
-- Include: synonyms, common misspellings, colloquial terms, alternative ingredient names.
-- Only at the END, after filling with ${config.lang} terms: add 3-5 cross-language synonyms that buyers in this market type in other languages.
+- ZERO repetition within the backend itself — every word appears exactly once.
+- Include: synonyms, common misspellings, colloquial terms, alternative ingredient names, related conditions.
+- Only at the END, after filling with ${config.lang} terms: add 3-5 cross-language synonyms.
 - NEVER include: reviews, testimonials, ratings, bestseller, ranking, customer, satisfaction, guarantee, buy, price, cheap, discount, offer, free, shipping, delivery. Amazon rejects these.
+- Before finalizing: estimate your byte count. Remove words until you are under 490 bytes.
 
 ═══ 6. PRIMARY KEYWORD ═══
 - Choose the primary keyword based on: what competitors use most in their titles + what a real buyer would type.
@@ -140,14 +146,11 @@ Module type names MUST be written in ${config.lang} (the marketplace language), 
 7. Preguntas Frecuentes Visuales: Answer top objections from competitor reviews.
 
 ═══ 8. SEO DIAGNOSTIC ═══
-- competitorKeywordMap: For each keyword found in competitor data, report:
-  - "keyword": the term
-  - "frequency": how many competitors use it
-  - "totalCompetitors": total competitors analyzed
-  - "classification": one of "core", "benefit", "ingredient", "problem", "use_case", "long_tail"
-  - "placement": where you placed it in the listing (e.g., "Title position 1-3", "Bullet 2")
+- competitorKeywordMap:
+  - IF competitor data was provided: for each keyword found, report frequency, totalCompetitors, classification, placement.
+  - IF no competitor data was provided (empty or scraping failed): set competitorKeywordMap to an empty array [] and set "noCompetitorData": true in the analysis object. DO NOT invent 0/0 frequency data — that is misleading. Instead, add a "dataWarning" field explaining that keyword analysis was done based on product information only, without real competitor data.
 - keywordGaps: Keywords with HIGH buyer intent that competitors MISSED. Do NOT invent search volume numbers. Just describe the opportunity.
-- NEVER fabricate search volumes or traffic data. Only report what you can infer from the provided competitor listings.
+- NEVER fabricate search volumes, competitor frequencies, or traffic data. Only report what you can infer from actual provided competitor listings.
 
 JSON SCHEMA (Mandatory — follow EXACTLY):
 {

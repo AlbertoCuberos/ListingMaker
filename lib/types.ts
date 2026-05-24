@@ -54,13 +54,15 @@ export interface Affiliate {
   email: string;
   commissionPct: number;
   earningsTotal: number;
-  recentSales: {
-    userId: string;
-    amount: number;
-    commission: number;
-    date: string;
-  }[];
+  recentSales: AffiliateSale[];
   createdAt: any;
+}
+
+export interface AffiliateSale {
+  userId: string;
+  amount: number;
+  commission: number;
+  date: string;
 }
 
 export interface KeywordStrategy {

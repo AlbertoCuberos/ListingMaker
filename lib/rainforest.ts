@@ -1,79 +1,245 @@
-// Rainforest API integration module
-// This serves as the magic bridge to fetch real-time competitor data without user copy-pasting.
+// Amazon Direct Scraper — Real competitor data extraction
+// Scrapes Amazon search results and product pages directly as a client browser
 
-export interface RainforestResult {
+export interface CompetitorProduct {
   title: string;
   asin: string;
-  rating?: number;
-  price?: number;
+  bullets: string[];
+  price?: string;
+  rating?: string;
+  reviewCount?: string;
 }
 
-export async function fetchCompetitorsFromRainforest(searchTerm: string, marketplace: string): Promise<string> {
-  // If no Rainforest API key is present (dev/demo mode), we return a highly realistic mock payload.
-  // In production, this contacts the Rainforest API to scrape the actual Amazon SERP.
-  if (!process.env.RAINFOREST_API_KEY || process.env.RAINFOREST_API_KEY === "demo") {
-    // Artificial delay to simulate scraping
-    await new Promise((resolve) => setTimeout(resolve, 2500));
-    
-    return `
---- Competitor 1 ---
-Title: Premium Calming Supplement for Dogs - Anxiety Relief Hemp Chews with Melatonin, Chamomile & Valerian Root - Helps with Barking, Storms & Separation Anxiety - 120 Soft Chews
-Bullet 1: 🌿 NATURAL ANXIETY RELIEF: Formulated with organic hemp seed oil, melatonin, chamomile, and valerian root to help calm and relax your dog without drowsiness.
-Bullet 2: ⛈️ PERFECT FOR STRESSFUL SITUATIONS: Keep your dog calm during thunderstorms, fireworks, car rides, vet visits, and separation anxiety.
-Bullet 3: 🥩 DELICIOUS DUCK FLAVOR: Even the pickiest eaters love these soft chews. No more hiding pills in cheese or peanut butter.
-Bullet 4: 🇺🇸 MADE IN THE USA: Manufactured in an FDA-registered, GMP-certified facility using rigorous quality standards.
-Bullet 5: 🐶 FOR ALL BREEDS AND SIZES: Easily adaptable dosage for small, medium, and large dogs. 
+const domainMap: Record<string, string> = {
+  us: "www.amazon.com",
+  uk: "www.amazon.co.uk",
+  de: "www.amazon.de",
+  fr: "www.amazon.fr",
+  it: "www.amazon.it",
+  es: "www.amazon.es",
+};
 
---- Competitor 2 ---
-Title: Advanced Dog Calming Chews - Hemp Oil for Dogs Anxiety, Stress Relief, Aggression, Fireworks - Natural Supplement for Separation Anxiety
-Bullet 1: VET RECOMMENDED CALMING AID - Helps reduce stress, tension, and hyperactive behavior naturally.
-Bullet 2: POWERFUL BLEND - Contains L-Tryptophan, Organic Hemp Powder, and Chamomile for optimal relaxation.
-Bullet 3: FAST ACTING FORMULA - Experience noticeable results in as little as 30-45 minutes.
-Bullet 4: NO FILLERS OR ARTIFICIAL COLORS - We believe in 100% natural, holistic care for your furry best friend.
-Bullet 5: 100% SATISFACTION GUARANTEED - If your dog doesn't love them, get your money back!
-    `;
+// Rotate User-Agents to reduce blocking risk
+const userAgents = [
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+];
+
+function getRandomUA(): string {
+  return userAgents[Math.floor(Math.random() * userAgents.length)];
+}
+
+function getHeaders(domain: string): Record<string, string> {
+  return {
+    "User-Agent": getRandomUA(),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9,es;q=0.8,de;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Cache-Control": "max-age=0",
+  };
+}
+
+// Extract text between two markers in raw HTML
+function extractBetween(html: string, start: string, end: string): string {
+  const startIdx = html.indexOf(start);
+  if (startIdx === -1) return "";
+  const afterStart = startIdx + start.length;
+  const endIdx = html.indexOf(end, afterStart);
+  if (endIdx === -1) return "";
+  return html.substring(afterStart, endIdx);
+}
+
+// Clean HTML tags from a string
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Extract ASINs from Amazon search results page HTML
+function extractAsinsFromSearch(html: string): string[] {
+  const asins: string[] = [];
+  const regex = /data-asin="([A-Z0-9]{10})"/g;
+  let match;
+  while ((match = regex.exec(html)) !== null) {
+    const asin = match[1];
+    if (asin && !asins.includes(asin) && asin !== "undefined") {
+      asins.push(asin);
+    }
   }
+  return asins.slice(0, 10); // Top 10 organic results
+}
 
-  // Real API fetching logic (Rainforest API structure)
+// Extract product details from a single product page
+function extractProductFromPage(html: string, asin: string): CompetitorProduct | null {
   try {
-    const domainMap: Record<string, string> = {
-      us: "amazon.com",
-      uk: "amazon.co.uk",
-      de: "amazon.de",
-      fr: "amazon.fr",
-      it: "amazon.it",
-      es: "amazon.es",
-    };
+    // Extract title
+    let title = "";
+    const titleMatch = html.match(/id="productTitle"[^>]*>([^<]+)</);
+    if (titleMatch) {
+      title = stripHtml(titleMatch[1]).trim();
+    }
+    if (!title) return null;
 
-    const domain = domainMap[marketplace] || "amazon.com";
-    const apiKey = process.env.RAINFOREST_API_KEY;
-    const url = `https://api.rainforestapi.com/request?api_key=${apiKey}&type=search&amazon_domain=${domain}&search_term=${encodeURIComponent(searchTerm)}`;
-
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (!data.search_results || data.search_results.length === 0) {
-      throw new Error("No organic results found");
+    // Extract bullet points
+    const bullets: string[] = [];
+    const bulletSection = extractBetween(html, 'id="feature-bullets"', '</div>');
+    if (bulletSection) {
+      const bulletRegex = /<span class="a-list-item">\s*([\s\S]*?)\s*<\/span>/g;
+      let bMatch;
+      while ((bMatch = bulletRegex.exec(bulletSection)) !== null) {
+        const bulletText = stripHtml(bMatch[1]).trim();
+        if (bulletText && bulletText.length > 10 && !bulletText.includes("Make sure") && !bulletText.includes("Click here")) {
+          bullets.push(bulletText);
+        }
+      }
     }
 
-    // Grab top 5-10 organic results
-    const topResults = data.search_results.slice(0, 10);
-    
-    // We would ideally do a secondary fetch to get the ASIN bullet points, 
-    // but often rainforest includes feature_bullets in detailed search or we just extract titles for context.
-    // For full magic, a multi-concurrent fetch per ASIN is done here.
-    
-    let compiledListings = "";
-    topResults.forEach((res: any, index: number) => {
-      compiledListings += `\n--- Competitor ${index + 1} ---\n`;
-      compiledListings += `Title: ${res.title}\n`;
-      // In a full implementation, we fetch the ASIN details to get exactly the bullets.
-      // compiledListings += `Bullet 1: ...\n`;
-    });
+    // Also try alternate bullet format 
+    if (bullets.length === 0) {
+      const altBulletRegex = /<li[^>]*><span[^>]*class="a-list-item"[^>]*>([\s\S]*?)<\/span><\/li>/g;
+      let aMatch;
+      while ((aMatch = altBulletRegex.exec(html)) !== null) {
+        const t = stripHtml(aMatch[1]).trim();
+        if (t && t.length > 10) bullets.push(t);
+      }
+    }
 
-    return compiledListings;
-  } catch (err) {
-    console.error("Rainforest API error:", err);
-    throw new Error("Failed to extract competitors from marketplace.");
+    // Extract price
+    let price = "";
+    const priceMatch = html.match(/class="a-price-whole">([^<]+)/);
+    if (priceMatch) {
+      price = priceMatch[1].replace(",", "").trim();
+      const decMatch = html.match(/class="a-price-fraction">([^<]+)/);
+      if (decMatch) price += "." + decMatch[1].trim();
+    }
+
+    // Extract rating
+    let rating = "";
+    const ratingMatch = html.match(/(\d+[.,]\d+) (?:de|out of|von|su|sur) \d+/);
+    if (ratingMatch) rating = ratingMatch[1];
+
+    // Extract review count
+    let reviewCount = "";
+    const reviewMatch = html.match(/(\d[\d.,]+)\s*(?:valoraciones|ratings|Bewertungen|valutazioni|évaluations)/i);
+    if (reviewMatch) reviewCount = reviewMatch[1];
+
+    return { title, asin, bullets, price, rating, reviewCount };
+  } catch (e) {
+    console.error(`[SCRAPER] Error parsing product ${asin}:`, e);
+    return null;
   }
+}
+
+// Fetch a single product page with a strict timeout
+async function fetchProductWithTimeout(domain: string, asin: string, timeoutMs = 8000): Promise<CompetitorProduct | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const productUrl = `https://${domain}/dp/${asin}`;
+    const productResponse = await fetch(productUrl, {
+      headers: getHeaders(domain),
+      redirect: "follow",
+      signal: controller.signal,
+    });
+    if (!productResponse.ok) return null;
+    const productHtml = await productResponse.text();
+    return extractProductFromPage(productHtml, asin);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Main scraping function: search Amazon and extract top competitor listings IN PARALLEL
+export async function fetchCompetitorsFromRainforest(searchTerm: string, marketplace: string): Promise<string> {
+  const domain = domainMap[marketplace] || domainMap.us;
+  console.log(`[SCRAPER] Searching ${domain} for: "${searchTerm}"`);
+
+  try {
+    // Step 1: Search Amazon (with 10s timeout)
+    const searchController = new AbortController();
+    const searchTimer = setTimeout(() => searchController.abort(), 10000);
+    let searchHtml = "";
+    try {
+      const searchUrl = `https://${domain}/s?k=${encodeURIComponent(searchTerm)}`;
+      const searchResponse = await fetch(searchUrl, {
+        headers: getHeaders(domain),
+        redirect: "follow",
+        signal: searchController.signal,
+      });
+      if (!searchResponse.ok) {
+        console.warn(`[SCRAPER] Search returned ${searchResponse.status}.`);
+        return buildFallbackMessage(searchTerm, marketplace);
+      }
+      searchHtml = await searchResponse.text();
+    } finally {
+      clearTimeout(searchTimer);
+    }
+
+    const asins = extractAsinsFromSearch(searchHtml);
+    console.log(`[SCRAPER] Found ${asins.length} ASINs. Fetching top 5 IN PARALLEL...`);
+
+    if (asins.length === 0) {
+      return buildFallbackMessage(searchTerm, marketplace);
+    }
+
+    // Step 2: Fetch ALL product pages IN PARALLEL (max 5, each with 8s timeout)
+    const productsToFetch = asins.slice(0, 5);
+    const results = await Promise.allSettled(
+      productsToFetch.map(asin => fetchProductWithTimeout(domain, asin, 8000))
+    );
+
+    const products: CompetitorProduct[] = results
+      .filter((r): r is PromiseFulfilledResult<CompetitorProduct> =>
+        r.status === "fulfilled" && r.value !== null && !!r.value?.title
+      )
+      .map(r => r.value);
+
+    console.log(`[SCRAPER] ✓ Successfully scraped ${products.length}/${productsToFetch.length} competitor listings`);
+
+    if (products.length === 0) {
+      return buildFallbackMessage(searchTerm, marketplace);
+    }
+
+    return formatCompetitorData(products);
+  } catch (error) {
+    console.error("[SCRAPER] Critical error in Amazon scraping:", error);
+    return buildFallbackMessage(searchTerm, marketplace);
+  }
+}
+
+function formatCompetitorData(products: CompetitorProduct[]): string {
+  let output = "";
+  products.forEach((p, i) => {
+    output += `\n--- Competitor ${i + 1} (ASIN: ${p.asin}) ---\n`;
+    output += `Title: ${p.title}\n`;
+    if (p.price) output += `Price: ${p.price}\n`;
+    if (p.rating) output += `Rating: ${p.rating}\n`;
+    if (p.reviewCount) output += `Reviews: ${p.reviewCount}\n`;
+    p.bullets.forEach((b, bi) => {
+      output += `Bullet ${bi + 1}: ${b}\n`;
+    });
+  });
+  return output;
+}
+
+function buildFallbackMessage(searchTerm: string, marketplace: string): string {
+  return `[NOTE: Live Amazon scraping did not return results for "${searchTerm}" on Amazon.${marketplace}. This may be due to Amazon rate-limiting or CAPTCHA. The AI should generate the listing based on the product information provided, general category knowledge, and best practices. DO NOT invent competitor data or fake search volumes. Be transparent about what is estimated vs. factual.]`;
 }

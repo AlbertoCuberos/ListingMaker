@@ -116,9 +116,26 @@ ${input.competitorListings}`,
         parsed.analysis.titleAnalysis.charCount = parsed.title.length;
       }
 
-      // Calculate actual backend keyword byte count
+      // Enforce backend keyword byte limit (Amazon hard limit: 500 bytes)
       if (parsed.backendKeywords) {
-        parsed.backendByteCount = Buffer.byteLength(parsed.backendKeywords, "utf8");
+        const BACKEND_BYTE_LIMIT = 490; // safety margin below Amazon's 500-byte limit
+        let keywords = parsed.backendKeywords.trim();
+        let byteCount = Buffer.byteLength(keywords, "utf8");
+
+        if (byteCount > BACKEND_BYTE_LIMIT) {
+          console.warn(`[AI] Backend keywords too long: ${byteCount} bytes — truncating to ${BACKEND_BYTE_LIMIT}`);
+          // Remove words from the end until we're within the limit
+          const words = keywords.split(" ");
+          while (words.length > 0 && Buffer.byteLength(words.join(" "), "utf8") > BACKEND_BYTE_LIMIT) {
+            words.pop();
+          }
+          keywords = words.join(" ");
+          parsed.backendKeywords = keywords;
+          byteCount = Buffer.byteLength(keywords, "utf8");
+          console.log(`[AI] Backend truncated to ${byteCount} bytes (${words.length} words)`);
+        }
+
+        parsed.backendByteCount = byteCount;
       }
 
       return parsed;
