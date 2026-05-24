@@ -25,20 +25,74 @@ const instrumentSerif = Instrument_Serif({
   weight: "400",
 });
 
+const BASE_URL = "https://listingmaker.app";
+
 export const metadata: Metadata = {
-  title: "ListingMaker — Create Amazon Listings That Sell. In 5 Minutes.",
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default: "ListingMaker — Amazon Listings That Sell. In 60 Seconds.",
+    template: "%s | ListingMaker",
+  },
   description:
-    "The only tool you need to create professional Amazon listings. No subscriptions. Upload your product photos, paste competitor listings, and get a fully optimized listing in under 5 minutes.",
-  keywords:
-    "amazon listing, amazon listing tool, amazon seller tools, create amazon listing, optimize amazon listing, amazon SEO",
+    "Create fully optimized Amazon listings in 60 seconds. AI-powered title, bullets, backend keywords and A+ brief — optimized for COSMO algorithm + Rufus AI. No subscriptions.",
+  keywords: [
+    "amazon listing generator",
+    "amazon listing optimization",
+    "amazon SEO tool",
+    "create amazon listing AI",
+    "optimize amazon listing",
+    "amazon seller tools",
+    "amazon listing maker",
+    "COSMO amazon algorithm",
+    "Rufus AI amazon",
+    "amazon keywords tool",
+    "listing amazon españa",
+    "herramienta listing amazon",
+  ],
+  authors: [{ name: "ListingMaker", url: BASE_URL }],
+  creator: "ListingMaker",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  alternates: {
+    canonical: BASE_URL,
+  },
   openGraph: {
-    title: "ListingMaker — Create Amazon Listings That Sell",
-    description:
-      "No subscriptions. No bloated suites. Just professional Amazon listings in 5 minutes.",
     type: "website",
+    url: BASE_URL,
+    siteName: "ListingMaker",
+    title: "ListingMaker — Amazon Listings That Sell. In 60 Seconds.",
+    description:
+      "AI-powered Amazon listing generator. Optimized for COSMO + Rufus AI. No subscriptions — pay per listing. 6 markets.",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "ListingMaker — Create Amazon Listings That Sell",
+      },
+    ],
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ListingMaker — Amazon Listings That Sell. In 60 Seconds.",
+    description:
+      "AI-powered Amazon listing generator. Optimized for COSMO + Rufus AI. No subscriptions.",
+    images: ["/opengraph-image"],
   },
   icons: {
-    icon: "/logo.png",
+    icon: [{ url: "/icon.png", type: "image/png" }],
+    apple: "/apple-icon.png",
+    shortcut: "/icon.png",
   },
 };
 
