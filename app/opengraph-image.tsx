@@ -4,11 +4,7 @@ export const runtime = "edge";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default async function OGImage() {
-  const logoData = await fetch(
-    new URL("../public/logo.png", import.meta.url)
-  ).then((res) => res.arrayBuffer());
-
+export default function OGImage() {
   return new ImageResponse(
     (
       <div
@@ -38,15 +34,9 @@ export default async function OGImage() {
           }}
         />
 
-        {/* Logo + name row */}
+        {/* Rocket + name row */}
         <div style={{ display: "flex", alignItems: "center", gap: 24, marginBottom: 32 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`data:image/png;base64,${Buffer.from(logoData).toString("base64")}`}
-            width={96}
-            height={96}
-            alt="ListingMaker logo"
-          />
+          <span style={{ fontSize: 96 }}>🚀</span>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span style={{ fontSize: 64, fontWeight: 800, color: "#ffffff", lineHeight: 1 }}>
               Listing<span style={{ color: "#f97316" }}>Maker</span>
