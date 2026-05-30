@@ -95,12 +95,23 @@ export default function AuthModal() {
       setAuthModalOpen(false);
       router.push("/dashboard");
     } catch (err: any) {
-      if (err.code === "auth/email-already-in-use") {
+      const code = err.code || "";
+      if (code === "auth/email-already-in-use") {
         setError("Ese email ya está registrado. Prueba a iniciar sesión.");
-      } else if (err.code === "auth/invalid-credential") {
-        setError("Credenciales inválidas. Verifica tu email y contraseña.");
+      } else if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
+        setError("Email o contraseña incorrectos.");
+      } else if (code === "auth/too-many-requests") {
+        setError("Demasiados intentos fallidos. Espera unos minutos e inténtalo de nuevo.");
+      } else if (code === "auth/network-request-failed") {
+        setError("Error de conexión. Verifica tu conexión a internet e inténtalo de nuevo.");
+      } else if (code === "auth/invalid-email") {
+        setError("El formato del email no es válido.");
+      } else if (code === "auth/weak-password") {
+        setError("La contraseña debe tener al menos 6 caracteres.");
+      } else if (code === "auth/operation-not-allowed") {
+        setError("El registro con email no está disponible en este momento. Usa Google.");
       } else {
-        setError(err.message || t.auth.errorGeneric);
+        setError("Algo salió mal. Inténtalo de nuevo o usa Google.");
       }
     } finally {
       setLoading(false);
