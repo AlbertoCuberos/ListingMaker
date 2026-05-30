@@ -48,7 +48,7 @@ export default function DashboardPage() {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, userId: user.uid }),
+        body: JSON.stringify({ plan, userId: user.uid, userEmail: user.email }),
       });
       const { url, error } = await res.json();
       if (error) {
@@ -158,9 +158,9 @@ export default function DashboardPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { key: "starter", name: t.pricing.starter, price: "$29", listings: "5 listings", perListing: "$5.80", highlight: false },
-              { key: "business", name: t.pricing.business, price: "$79", listings: "25 listings", perListing: "$3.16", highlight: true },
-              { key: "agency", name: "Pack 100", price: "$199", listings: "100 listings", perListing: "$1.99", highlight: false }
+              { key: "starter", name: t.pricing.starter, price: "€29", listings: "5 listings", perListing: "€5.80", highlight: false },
+              { key: "business", name: t.pricing.business, price: "€79", listings: "25 listings", perListing: "€3.16", highlight: true },
+              { key: "agency", name: "Pack 100", price: "€199", listings: "100 listings", perListing: "€1.99", highlight: false }
             ].map((plan) => (
               <div
                 key={plan.key}

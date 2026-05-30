@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const { plan, userId } = await req.json();
+    const { plan, userId, userEmail } = await req.json();
 
     if (!plan || !userId) {
       return NextResponse.json({ error: "Missing plan or userId" }, { status: 400 });
@@ -17,21 +17,17 @@ export async function POST(req: NextRequest) {
     }
 
     const credits = getCreditsForPlan(plan);
-
-    // Read affiliate ref from cookie (set by middleware when ?ref=CODE is in URL)
     const refCode = req.cookies.get("lm_ref")?.value || null;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://listingmaker.app";
 
-    const customer = await stripe.customers.create({
-      metadata: { firebaseUserId: userId },
-    });
-
-    // Create Checkout Session
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    // Let Stripe create the customer during checkout so it can detect
+    // the browser country and apply Adaptive Pricing (EUR → GBP/USD etc.)
     const session = await stripe.checkout.sessions.create({
-      customer: customer.id,
       mode: "payment",
       payment_method_types: ["card"],
       allow_promotion_codes: true,
+      customer_creation: "always",
+      ...(userEmail ? { customer_email: userEmail } : {}),
       line_items: [{ price: priceId, quantity: 1 }],
       metadata: {
         firebaseUserId: userId,
