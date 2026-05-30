@@ -12,7 +12,11 @@ import Footer from "@/components/Footer";
 
 export default function DashboardPage() {
   const { user, profile, loading, signOut, isAdmin } = useAuth();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const isGBP = locale === "en";
+  const prices = isGBP
+    ? { starter: "£25", starterPer: "£5.00", pro: "£67", proPer: "£2.68", agency: "£169", agencyPer: "£1.69" }
+    : { starter: "€29", starterPer: "€5.80", pro: "€79", proPer: "€3.16", agency: "€199", agencyPer: "€1.99" };
   const router = useRouter();
   const [buyingPlan, setBuyingPlan] = useState<string | null>(null);
   const [listings, setListings] = useState<any[]>([]);
@@ -158,9 +162,9 @@ export default function DashboardPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { key: "starter", name: t.pricing.starter, price: "€29", listings: "5 listings", perListing: "€5.80", highlight: false },
-              { key: "business", name: t.pricing.business, price: "€79", listings: "25 listings", perListing: "€3.16", highlight: true },
-              { key: "agency", name: "Pack 100", price: "€199", listings: "100 listings", perListing: "€1.99", highlight: false }
+              { key: "starter", name: t.pricing.starter, price: prices.starter, listings: "5 listings", perListing: prices.starterPer, highlight: false },
+              { key: "business", name: t.pricing.business, price: prices.pro, listings: "25 listings", perListing: prices.proPer, highlight: true },
+              { key: "agency", name: "Pack 100", price: prices.agency, listings: "100 listings", perListing: prices.agencyPer, highlight: false }
             ].map((plan) => (
               <div
                 key={plan.key}
