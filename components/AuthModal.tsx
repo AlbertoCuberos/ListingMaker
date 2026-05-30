@@ -93,6 +93,8 @@ export default function AuthModal() {
         await signInWithEmailAndPassword(auth, email, password);
       }
       setAuthModalOpen(false);
+      // Small delay to allow onAuthStateChanged to propagate before navigating
+      await new Promise(r => setTimeout(r, 400));
       router.push("/dashboard");
     } catch (err: any) {
       const code = err.code || "";

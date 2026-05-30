@@ -82,6 +82,11 @@ export default function DashboardPage() {
     );
   }
 
+  if (!user) {
+    router.push("/");
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-[#050508] flex flex-col">
       {/* Header */}
